@@ -1,5 +1,3 @@
-// One small leap for a frog, one giant leap for the CS student(maybe?) :D
-
 /*
 There are 2 * n frogs and only one free spot
 The frogs are positioned in a manner of the kind: 
