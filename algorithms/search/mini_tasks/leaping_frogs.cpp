@@ -3,7 +3,7 @@
 /*
 There are 2 * n frogs and only one free spot
 The frogs are positioned in a manner of the kind: 
->>..> _ <<...<, where < denotes a frog looking to the left, <
+>>..> _ <<...<, where < denotes a frog looking to the left,
 > denotes a frog looking to the right
 
 The number of left-looking frogs is equal to the number of right-looking frogs
@@ -23,48 +23,53 @@ struct Solution {
     Solution(int n = 2)
         :board(2 * n + 1), 
          empty_space{n} { 
+
+        /*
+        Solve for the symmetric case, so we don't have to reverse the print path
+        */
         
         for(int i = 0; i < n; ++i) { 
-            board[i] = '>';
+            board[i] = '<';
         }
         board[empty_space] = '_';
         for(int i = n + 1; i < board.size(); ++i) { 
-            board[i] = '<';
+            board[i] = '>';
         }
         
     }
 
     void solve() { 
         solve_rec(empty_space);
+        std::cout << "Goal state reached." << std::endl;
     }
 
 
     void solve_rec(int empty_id) { 
         if(all_right()) { 
             found = true;
-            std::cout << "Found solution: ";
+            std::cout << "Starting...\n"; // actually ending
             std::cout << *this;
             return;
         }
 
         for(int move: moves) { 
-            int new_hole = empty_id + move;
+            int new_empty = empty_id + move;
 
-            if(new_hole >=0 && new_hole < board.size()) { 
+            if(new_empty >=0 && new_empty < board.size()) { 
 
-                if(move > 0 && board[new_hole] == '<' || // ensure validity
-                   move < 0 && board[new_hole] == '>') { 
+                if(move > 0 && board[new_empty] == '>' || // ensure validity
+                   move < 0 && board[new_empty] == '<') { 
 
-                    std::swap(board[new_hole], 
+                    std::swap(board[new_empty], 
                               board[empty_id]);
-                    solve_rec(new_hole);
+                    solve_rec(new_empty);
                     
-                    std::swap(board[new_hole], // backtrack
+                    std::swap(board[new_empty], // backtrack
                               board[empty_id]);
 
                     if(found) { 
                         std::cout << *this;
-                        return;
+                        return; // once we find the first solution, we return
                     }
 
                 }
@@ -84,12 +89,12 @@ struct Solution {
     }
 
 
-//private:
+private:
 
-    bool all_right() const {  // well, all right right, right
+    bool all_right() const {  // well, all right left, all left right
         int n = N(); 
         for(int i = 0; i < n; ++i) { 
-            if(board[i] != '<') { 
+            if(board[i] != '>') { 
                 return false;
             }
         }
@@ -112,14 +117,9 @@ struct Solution {
 
 
 
-
-
-
 int main() { 
     Solution s;
-
-    s.solve_rec(s.empty_space);
-
+    s.solve();
 
     return 0;
 }
