@@ -114,7 +114,6 @@ struct Board {
                                         target[tiles[zx][zy]].second < 
                                         target[tiles[x][y]].first * dim +
                                         target[tiles[x][y]].second) {
-                        std::cout << "here" << std::endl;
                         ++inversions;
                     }
                 }   
