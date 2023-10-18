@@ -49,7 +49,7 @@ struct Board {
 
     int manhattan(dict& target) const {
         int dist{0};
-        int number{0};
+        int number{42}; // initial value does not matter
 
         for(int i = 0; i < size(); ++i) {
             for(int j = 0; j < size(); ++j) {
@@ -79,13 +79,62 @@ struct Board {
         return dist;
     }
 
+    bool solvable(dict& target) const {
+        const int inv = num_inversions(target);
+        const int dim = size();
+        
+        return (dim % 2 != 0 && inv % 2 == 0) ||
+               (dim % 2 == 0 && inv  + blank_coordinates().first % 2 != 0); 
+    }
+
     int size() const {
         return tiles.size();
     }
 
  
     board tiles;
-    
+// private:
+    int num_inversions(dict& target) const { // bubble sort, the stupid way, ikr
+                                        // the merge sort way is faster, yet 
+                                        // takes longer to implement :D
+        int inversions{0};
+        const int dim = size();
+        int x, zx, y, zy;
+
+        for(int i = 0; i < dim*dim; ++i) {
+            x = i / dim;
+            y = i  % dim;
+
+            if(tiles[x][y]) {
+                for(int k = i + 1; k < dim * dim; ++k) {
+                    zx = k / dim;
+                    zy = k % dim;
+
+                    if(tiles[zx][zy] && target[tiles[zx][zy]].first * dim +
+                                        target[tiles[zx][zy]].second < 
+                                        target[tiles[x][y]].first * dim +
+                                        target[tiles[x][y]].second) {
+                        std::cout << "here" << std::endl;
+                        ++inversions;
+                    }
+                }   
+            }
+        }
+
+        return inversions;
+    } 
+
+    std::pair<int, int> blank_coordinates() const {
+        int dim = size();
+        for(int i = 0; i < dim; ++i) {
+            for(int j = 0; j < dim; ++j) {
+                if(not(tiles[i][j])) {
+                    return std::pair{i, j};
+                }
+            }
+        }
+        throw std::runtime_error("Invalid state");
+    }
 
 };
 
@@ -126,6 +175,9 @@ struct Solution {
         s.init_target();
 
         is >> s.b.tiles;
+        if(not(s.b.solvable(s.target))) {
+            throw std::runtime_error("No solution for this board is available.");
+        }
 
         return is;
     }
@@ -182,21 +234,26 @@ private:
 
 
 
-int main() {
+int main() try {
 
     Solution s;
     std::cin >> s;
     std::cout << s;
-    std::cout << "..................." << std::endl;
-    for(auto p: s.target) {
-        std::cout << p.first << ", " << p.second.first << " " << p.second.second << std::endl;
-    }
-    std::cout << "..................." << std::endl;
+    // std::cout << "..................." << std::endl;
+    // for(auto p: s.target) {
+    //     std::cout << p.first << ", " << p.second.first << " " << p.second.second << std::endl;
+    // }
+    // std::cout << "..................." << std::endl;
 
-    std::cout << "Distances: " << std::endl;
-    std::cout << s.b.hamming(s.target) << std::endl;
-    std::cout << s.b.manhattan(s.target) << std::endl;
-
+    // std::cout << "Distances: " << std::endl;
+    // std::cout << s.b.hamming(s.target) << std::endl;
+    // std::cout << s.b.manhattan(s.target) << std::endl;
+    // std::cout << s.b.num_inversions(s.target) << std::endl;
 
     return 0;
+
+} catch(const std::exception& e) { 
+
+    std::cout << "The following error occurred: "
+              << e.what() << std::endl; 
 }
