@@ -11,7 +11,7 @@
 using board = std::vector<std::vector<int>>; // matrix representation
 
 using dict = std::unordered_map<int, std::pair<int, int>>;
-
+using string_dict = std::unordered_map<std::string, std::string>;
 
 
 struct Move {
@@ -26,7 +26,7 @@ struct Move {
 
 
 
-using string_dict = std::unordered_map<std::string, Move>;
+using string_move_dict = std::unordered_map<std::string, Move>;
 
 
 std::istream& operator>>(std::istream& is,
@@ -129,8 +129,7 @@ struct Board {
         int x, y;
         x = zx + m.x;
         y = zy + m.y;
-        std::cout << "New x: " << x << ", new y: " << y << std::endl;
-        std::cout << "zx: " << zx << "zy: " << zy << std::endl; 
+
         if(within_limits(x) && within_limits(y)) {
             std::swap(tiles[zx][zy], 
                       tiles[x][y]);
@@ -184,7 +183,6 @@ struct Board {
             for(int j = 0; j < dim; ++j) {
                 if(not(tiles[i][j])) {
                     zero_id = i * dim + j;
-                    std::cout << "Zero_id: " << zero_id << std::endl;
                     return std::pair{i, j};
                 }
             }
@@ -194,10 +192,15 @@ struct Board {
 
 
     /// @brief  with respect to the blank position
-    static inline string_dict moves = { {"left", Move{0, 1}}, 
-                                        {"right", Move{0, -1}}, 
-                                        {"up", Move{-1, 0}},
-                                        {"down", Move{1, 0}}, };
+    static inline string_move_dict moves = { {"left", Move{0, 1}}, 
+                                             {"right", Move{0, -1}}, 
+                                             {"up", Move{-1, 0}},
+                                             {"down", Move{1, 0}}, };
+    
+    static inline string_dict opposite_name {{"left", "right"},
+                                             {"right", "left"}, 
+                                             {"up", "down"}, 
+                                             {"down", "up"}};
 
 
 };
@@ -296,15 +299,15 @@ struct Solution {
     /// @param threshold determines the termination condition
     /// @return  FOUND if the goal state is reached and INT_MAX otherwise
     int search(int g, int threshold) {
+        int man = b.manhattan();
         int f = g + b.manhattan();
         if(f > threshold) {
             return f;
         }
 
         if(b.allright()) {
-            std::cout << path.size() << std::endl;
-            std::cout << path;
-            std::cout << "HERE" << std::endl;
+            std::cout << '\n' << g << std::endl;
+            std::cout << path << std::endl;
             return FOUND;
         }
 
@@ -315,10 +318,10 @@ struct Solution {
 
         for(const auto& name_move: Board::moves) {
             if((not(path.empty()) &&
-                path.back() != name_move.first) || path.empty()) {
+                path.back() != Board::opposite_name[name_move.first]) || path.empty()) {
             
                 if(b.apply_move(name_move.second)) {
-                    std::cout << "HERE " << std::endl;
+
                     path.push_back(name_move.first);
                     temp = search(g + 1, threshold);
 
