@@ -194,13 +194,13 @@ struct Board {
     /// @brief  with respect to the blank position
     static inline string_move_dict moves = { {"left", Move{0, 1}}, 
                                              {"right", Move{0, -1}}, 
-                                             {"up", Move{-1, 0}},
-                                             {"down", Move{1, 0}}, };
+                                             {"up", Move{1, 0}},
+                                             {"down", Move{-1, 0}}, };
     
     static inline string_dict opposite_name {{"left", "right"},
                                              {"right", "left"}, 
                                              {"up", "down"}, 
-                                             {"down", "up"}};
+                                             {"down", "up"}}, ;
 
 
 };
@@ -348,7 +348,7 @@ struct Solution {
 
         while(42) {
             temp = search(0, threshold);
-            if(temp = FOUND) {
+            if(temp == FOUND) {
                 break;
             } else {
                 threshold = temp;
@@ -401,3 +401,52 @@ int main() try {
     std::cout << "The following error occurred: "
               << e.what() << std::endl; 
 }
+
+
+/*
+in: 
+8
+-1
+1 2 3
+4 5 6
+0 7 8
+
+out: 
+2
+left
+left
+
+*********************
+in: 
+8
+-1
+6 5 3
+2 4 8
+7 0 1
+
+out:
+21
+left
+down
+down
+right
+right
+up
+left
+down
+left
+up
+right
+up
+right
+down
+left
+down
+right
+up
+up
+left
+left
+
+
+*/
