@@ -6,15 +6,22 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
+#include <climits>
 
 using board = std::vector<std::vector<int>>; // matrix representation
 
 using dict = std::unordered_map<int, std::pair<int, int>>;
 
 
+
 struct Move {
    int x{0};
    int y{0} ;
+
+   Move reverse() const {
+        return Move{x ? -x : x, 
+                    y ? -y : y};
+   }
 };
 
 
@@ -42,6 +49,14 @@ std::ostream& operator<<(std::ostream& os,
         std::cout << std::endl; 
     }
     return os;
+}
+
+std::ostream& operator<<(std::ostream& os, 
+                         const std::vector<std::string>& v) {
+    for(const std::string& elem: v) {
+        os << elem << '\n';
+    }
+    return os << std::endl;
 }
 
 
@@ -96,7 +111,7 @@ struct Board {
     bool solvable() const {
         const int inv = num_inversions();
         const int dim = size();
-        int blank_row = blank_coordinates().first;
+        int blank_row = zero_id / dim;
 
         return (dim % 2 != 0 && inv % 2 == 0) ||
                (dim % 2 == 0 && (inv + blank_row) % 2 != 0);  
@@ -106,8 +121,32 @@ struct Board {
         return tiles.size();
     }
 
+    bool apply_move(const Move& m) {
+        const int dim = size();
+        int zx = zero_id / dim;
+        int zy = zero_id % dim;
+
+        int x, y;
+        x = zx + m.x;
+        y = zy + m.y;
+        std::cout << "New x: " << x << ", new y: " << y << std::endl;
+        std::cout << "zx: " << zx << "zy: " << zy << std::endl; 
+        if(within_limits(x) && within_limits(y)) {
+            std::swap(tiles[zx][zy], 
+                      tiles[x][y]);
+            zero_id = x * dim + y; // update zero pos
+            return true; 
+        }
+
+        return false;
+    }
+
+    bool within_limits(int id) const {
+        return (id >= 0 && id < size()); 
+    }
  
     board tiles;
+    int zero_id{0};
     dict& target;
 // private:
     int num_inversions() const { // bubble sort, the stupid way, ikr
@@ -139,11 +178,13 @@ struct Board {
         return inversions;
     } 
 
-    std::pair<int, int> blank_coordinates() const {
+    std::pair<int, int> blank_coordinates() {
         int dim = size();
         for(int i = 0; i < dim; ++i) {
             for(int j = 0; j < dim; ++j) {
                 if(not(tiles[i][j])) {
+                    zero_id = i * dim + j;
+                    std::cout << "Zero_id: " << zero_id << std::endl;
                     return std::pair{i, j};
                 }
             }
@@ -151,12 +192,12 @@ struct Board {
         throw std::runtime_error("Invalid state");
     }
 
-// why inversed axes?
 
+    /// @brief  with respect to the blank position
     static inline string_dict moves = { {"left", Move{0, 1}}, 
                                         {"right", Move{0, -1}}, 
-                                        {"up", Move{1, 0}},
-                                        {"down", Move{-1, 0}}, };
+                                        {"up", Move{-1, 0}},
+                                        {"down", Move{1, 0}}, };
 
 
 };
@@ -176,7 +217,7 @@ struct Target {
         int dim = Target::get_dim(N);
 
         is >> zero_target_id;
-        zero_target_id = zero_target_id != -1 ? zero_target_id : N; 
+        zero_target_id = zero_target_id != -1 ? zero_target_id : N; // set to bottom right if -1
         
         t.init_target(dim, zero_target_id);
 
@@ -243,16 +284,92 @@ private:
 
 
 struct Solution {
+
+    static inline const int FOUND = -1;
+
     Target& target;
     Board b;
+    std::vector<std::string> path;
+
+    /// @brief  performs depth-limited search
+    /// @param g the cost function, level-wise
+    /// @param threshold determines the termination condition
+    /// @return  FOUND if the goal state is reached and INT_MAX otherwise
+    int search(int g, int threshold) {
+        int f = g + b.manhattan();
+        if(f > threshold) {
+            return f;
+        }
+
+        if(b.allright()) {
+            std::cout << path.size() << std::endl;
+            std::cout << path;
+            std::cout << "HERE" << std::endl;
+            return FOUND;
+        }
+
+
+        int min = INT_MAX;
+        int temp{42};
+
+
+        for(const auto& name_move: Board::moves) {
+            if((not(path.empty()) &&
+                path.back() != name_move.first) || path.empty()) {
+            
+                if(b.apply_move(name_move.second)) {
+                    std::cout << "HERE " << std::endl;
+                    path.push_back(name_move.first);
+                    temp = search(g + 1, threshold);
+
+                    if(temp == FOUND) {
+                        return FOUND;
+                    } 
+                    if(temp < min) {
+                        min = temp;
+                    }
+
+                    b.apply_move(name_move.second.reverse());    
+                    path.pop_back();
+                }
+                
+            }
+        }
+
+        return min;
+    }
+
+    void idastar() {
+        int threshold = b.manhattan(); // the heuristic value of root
+        int temp{42};
+
+        while(42) {
+            temp = search(0, threshold);
+            if(temp = FOUND) {
+                break;
+            } else {
+                threshold = temp;
+            }
+        }
+    }
+
+
 
     Solution(Target& t): target(t), 
                          b(std::sqrt(t.size()),
                            t.posistions) {
     } 
 
-    friend std::istream& operator>>(std::istream& is, Solution& s) {
-        return is >> s.b.tiles;
+    friend std::istream& operator>>(std::istream& is,
+                                    Solution& s) {
+        is >> s.b.tiles;
+        s.b.blank_coordinates();
+        
+        if(not(s.b.solvable())) {
+            throw(std::runtime_error("Board cannot be solved!"));
+        }
+
+        return is;
     }
 
 
@@ -266,8 +383,13 @@ int main() try {
 
     Solution s(t);
     std::cin >> s;
-    std::cout << "Manhattan distance: " << s.b.manhattan()<< std::endl;
-    std::cout << "Solvable: " << std::boolalpha << s.b.solvable() << std::endl;
+    // std::cout << "Manhattan distance: " << s.b.manhattan()<< std::endl;
+    // std::cout << "Solvable: " << std::boolalpha << s.b.solvable() << std::endl;
+    // s.b.apply_move(Board::moves["left"]);
+    // std::cout << s.b.tiles << std::endl;
+    // s.b.apply_move(Board::moves["left"].reverse());
+    // std::cout << s.b.tiles << std::endl;
+    s.idastar();
 
     return 0;
 
