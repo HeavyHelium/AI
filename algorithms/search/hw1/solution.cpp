@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <queue>
 #include <cassert>
 #include <cmath>
 #include <stdexcept>
@@ -9,6 +10,16 @@
 using board = std::vector<std::vector<int>>; // matrix representation
 
 using dict = std::unordered_map<int, std::pair<int, int>>;
+
+
+struct Move {
+   int x{0};
+   int y{0} ;
+};
+
+
+
+using string_dict = std::unordered_map<std::string, Move>;
 
 
 std::istream& operator>>(std::istream& is,
@@ -34,20 +45,19 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
+/// @brief A Board represents a node
 struct Board { 
 
-    Board(board b):
-        tiles(b) { 
-    }
-
-    Board(const int dim = 0):
-    tiles(std::vector<std::vector<int>>(dim)) { 
+    Board(const int dim, dict& target):
+        tiles(std::vector<std::vector<int>>(dim)), 
+        target(target) { 
+        
         for(int i = 0; i < dim; ++i) {
-            tiles.push_back(std::vector<int>(dim, 0));
+            tiles[i] = std::vector<int>(dim, 0);
         }
     }
 
-    int manhattan(dict& target) const {
+    int manhattan() const {
         int dist{0};
         int number{42}; // initial value does not matter
 
@@ -63,7 +73,11 @@ struct Board {
         return dist;
     }
 
-    int hamming(dict& target) const { 
+    bool allright() const {
+        return manhattan() == 0;
+    }
+
+    int hamming() const { 
         int dist{0};
         int number{0};
 
@@ -79,12 +93,13 @@ struct Board {
         return dist;
     }
 
-    bool solvable(dict& target) const {
-        const int inv = num_inversions(target);
+    bool solvable() const {
+        const int inv = num_inversions();
         const int dim = size();
-        
+        int blank_row = blank_coordinates().first;
+
         return (dim % 2 != 0 && inv % 2 == 0) ||
-               (dim % 2 == 0 && inv  + blank_coordinates().first % 2 != 0); 
+               (dim % 2 == 0 && (inv + blank_row) % 2 != 0);  
     }
 
     int size() const {
@@ -93,15 +108,16 @@ struct Board {
 
  
     board tiles;
+    dict& target;
 // private:
-    int num_inversions(dict& target) const { // bubble sort, the stupid way, ikr
-                                        // the merge sort way is faster, yet 
-                                        // takes longer to implement :D
+    int num_inversions() const { // bubble sort, the stupid way, ikr
+                                 // the merge sort way is faster, yet 
+                                 // takes longer to implement :D
         int inversions{0};
         const int dim = size();
         int x, zx, y, zy;
 
-        for(int i = 0; i < dim*dim; ++i) {
+        for(int i = 0; i < dim * dim; ++i) {
             x = i / dim;
             y = i  % dim;
 
@@ -135,87 +151,81 @@ struct Board {
         throw std::runtime_error("Invalid state");
     }
 
+// why inversed axes?
+
+    static inline string_dict moves = { {"left", Move{0, 1}}, 
+                                        {"right", Move{0, -1}}, 
+                                        {"up", Move{1, 0}},
+                                        {"down", Move{-1, 0}}, };
+
+
 };
 
 
-struct Solution { 
+struct Target { 
 
-    Board b;
-    dict target;
-    int target_zero{0};
-
-
-
-    void set_zero(const int val) { 
-        if(val < 0 || val >= b.size() * b.size()) {
-            throw std::domain_error("Invalid zero id");
-        } else {
-            target_zero = val;
-        }
-    }
+    dict posistions;
 
     friend std::istream& operator>>(std::istream& is,
-                                   Solution& s) {
+                                    Target& t) {
 
-        int N{0};
-        int I{0};
+        int N{42};
+        int zero_target_id{42}; // I in input example
 
-        is >> N;                                
-        is >> I;
+        is >> N;
+        int dim = Target::get_dim(N);
 
-        s.b = board(get_dim(N));
-
-        s.set_zero(I == -1 ? s.b.size() * s.b.size() - 1 : I);
-
-        for(int i = 0; i < s.b.size(); ++i) {
-           s.b.tiles[i].resize(s.b.size()); 
-        }
-
-        s.init_target();
-
-        is >> s.b.tiles;
-        if(not(s.b.solvable(s.target))) {
-            throw std::runtime_error("No solution for this board is available.");
-        }
+        is >> zero_target_id;
+        zero_target_id = zero_target_id != -1 ? zero_target_id : N; 
+        
+        t.init_target(dim, zero_target_id);
 
         return is;
     }
 
     friend std::ostream& operator<<(std::ostream& os, 
-                                    const Solution& s) { 
-        os << s.b.tiles << std::endl;
-        os << "Target zero id: " << s.target_zero << std::endl;
+                                    const Target& t) { 
+        for(auto& val_pos: t.posistions) {
+            os << val_pos.first << ":(" 
+               << val_pos.second.first << ", "
+               << val_pos.second.second << ")\n";
+        }
 
-        return os;
+        return os << std::endl;
+    }
 
+    int size() const {
+        return posistions.size();
     }
 
 private:
 
-    void init_target() {
-        int linear = 1;
-        const int dim = b.size();
+    /// @brief create the target as a dictionary, 
+    /// for linear heuristic metric calculation 
+    void init_target(int dim, int zero_id) {
+        
+        const int len = dim * dim;
 
-        const int zx = target_zero / dim;
-        const int zy = target_zero % dim;
-
-        target[0] = std::pair{ zx, zy };
-
-        for(int i = 0; i <= zx; ++i) {
-            for(int j = 0; (j < dim && i < zx) ||
-                           (i == zx && j < zy); 
-                           ++j) {
-                target[linear++] = std::pair{ i, j };
-            }
-        }
-        for(int j = zy + 1; j < dim; ++j) {
-            target[linear++] = std::pair{ zx, zy };
+        if(zero_id < 0 || zero_id >= len) {
+            throw std::domain_error("Target zero id is out of bounds!");
         }
 
-        for(int i = zx  + 1; i < dim; ++i) {
-            for(int j = 0; j < dim; ++j) {
-                target[linear++] = std::pair{i, j};
-            }
+        int x, y;
+
+        for(int i = 0; i < zero_id; ++i) {
+            x = i / dim;
+            y = i % dim;
+            posistions[x * dim + y + 1] = {x, y};
+        }
+
+        x = zero_id / dim;
+        y = zero_id % dim;
+        posistions[0] = { x, y };
+
+        for(int i = zero_id + 1; i < len; ++i) {
+            x = i / dim;
+            y = i % dim;
+            posistions[i] = {x, y};
         }
 
     }
@@ -232,22 +242,32 @@ private:
 };
 
 
+struct Solution {
+    Target& target;
+    Board b;
+
+    Solution(Target& t): target(t), 
+                         b(std::sqrt(t.size()),
+                           t.posistions) {
+    } 
+
+    friend std::istream& operator>>(std::istream& is, Solution& s) {
+        return is >> s.b.tiles;
+    }
+
+
+};
+
 
 int main() try {
 
-    Solution s;
-    std::cin >> s;
-    std::cout << s;
-    // std::cout << "..................." << std::endl;
-    // for(auto p: s.target) {
-    //     std::cout << p.first << ", " << p.second.first << " " << p.second.second << std::endl;
-    // }
-    // std::cout << "..................." << std::endl;
+    Target t;
+    std::cin >> t;
 
-    // std::cout << "Distances: " << std::endl;
-    // std::cout << s.b.hamming(s.target) << std::endl;
-    // std::cout << s.b.manhattan(s.target) << std::endl;
-    // std::cout << s.b.num_inversions(s.target) << std::endl;
+    Solution s(t);
+    std::cin >> s;
+    std::cout << "Manhattan distance: " << s.b.manhattan()<< std::endl;
+    std::cout << "Solvable: " << std::boolalpha << s.b.solvable() << std::endl;
 
     return 0;
 
