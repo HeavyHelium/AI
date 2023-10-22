@@ -10,7 +10,7 @@
 
 using board = std::vector<std::vector<int>>; // matrix representation
 
-using dict = std::unordered_map<int, std::pair<int, int>>;
+using dict = std::unordered_map<int, std::pair<int, int>>; // to save goal state
 using string_dict = std::unordered_map<std::string, std::string>;
 
 
@@ -88,7 +88,7 @@ struct Board {
         return dist;
     }
 
-    bool allright() const {
+    bool allright() const { // reached goal state
         return manhattan() == 0;
     }
 
@@ -200,7 +200,7 @@ struct Board {
     static inline string_dict opposite_name {{"left", "right"},
                                              {"right", "left"}, 
                                              {"up", "down"}, 
-                                             {"down", "up"}}, ;
+                                             {"down", "up"},};
 
 
 };
@@ -386,12 +386,7 @@ int main() try {
 
     Solution s(t);
     std::cin >> s;
-    // std::cout << "Manhattan distance: " << s.b.manhattan()<< std::endl;
-    // std::cout << "Solvable: " << std::boolalpha << s.b.solvable() << std::endl;
-    // s.b.apply_move(Board::moves["left"]);
-    // std::cout << s.b.tiles << std::endl;
-    // s.b.apply_move(Board::moves["left"].reverse());
-    // std::cout << s.b.tiles << std::endl;
+
     s.idastar();
 
     return 0;
@@ -401,52 +396,3 @@ int main() try {
     std::cout << "The following error occurred: "
               << e.what() << std::endl; 
 }
-
-
-/*
-in: 
-8
--1
-1 2 3
-4 5 6
-0 7 8
-
-out: 
-2
-left
-left
-
-*********************
-in: 
-8
--1
-6 5 3
-2 4 8
-7 0 1
-
-out:
-21
-left
-down
-down
-right
-right
-up
-left
-down
-left
-up
-right
-up
-right
-down
-left
-down
-right
-up
-up
-left
-left
-
-
-*/
