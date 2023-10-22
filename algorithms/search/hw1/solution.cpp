@@ -299,13 +299,13 @@ struct Solution {
     /// @param threshold determines the termination condition
     /// @return  FOUND if the goal state is reached and INT_MAX otherwise
     int search(int g, int threshold) {
-        int man = b.manhattan();
-        int f = g + b.manhattan();
+        int h = b.manhattan();
+        int f = g + h;
         if(f > threshold) {
             return f;
         }
 
-        if(b.allright()) {
+        if(h == 0) { // Goal state reached
             std::cout << '\n' << g << std::endl;
             std::cout << path << std::endl;
             return FOUND;
