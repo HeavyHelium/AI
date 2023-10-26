@@ -9,9 +9,29 @@
 
 - Solution implements the **_IDA\*_** minimal path cost search algorithm
 
-**_!NB!_** The tests outputs might be different depending on your order of moves taken(i.e. first you try right or left, etc.)
+**_!NB!_** The tests outputs might be different depending on your order of moves(i.e. first you try right or left, etc.)
 
-- Test command
+- The output should be in the format\:
+
+```
+<number of steps takes to solve the puzzle, -1 if no solution exists>
+<step_1>
+.....
+<step_K>
+
+```
+
+Where step_i is the ith step in the solution, step_i $\in$ {left, right, down, up}.
+
+## Running
+
+- Compile the program
+
+```sh
+g++ solution.cpp -std=c++17 -o a.out
+```
+
+- For testing
 
 ```sh
 cd tests
