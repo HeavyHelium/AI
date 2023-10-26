@@ -194,13 +194,13 @@ struct Board {
     /// @brief  with respect to the blank position
     static inline string_move_dict moves = { {"left", Move{0, 1}}, 
                                              {"right", Move{0, -1}}, 
-                                             {"up", Move{1, 0}},
-                                             {"down", Move{-1, 0}}, };
+                                             {"down", Move{-1, 0}},
+                                             {"up", Move{1, 0}}, };
     
-    static inline string_dict opposite_name {{"left", "right"},
-                                             {"right", "left"}, 
-                                             {"up", "down"}, 
-                                             {"down", "up"},};
+    static inline string_dict opposite_name { {"left", "right"},
+                                              {"right", "left"}, 
+                                              {"up", "down"}, 
+                                              {"down", "up"}, };
 
 
 };
@@ -369,7 +369,7 @@ struct Solution {
         s.b.blank_coordinates();
         
         if(not(s.b.solvable())) {
-            throw(std::runtime_error("Board cannot be solved!"));
+            throw(std::runtime_error("-1")); // text modified to adhere to output requirements
         }
 
         return is;
@@ -393,6 +393,5 @@ int main() try {
 
 } catch(const std::exception& e) { 
 
-    std::cout << "The following error occurred: "
-              << e.what() << std::endl; 
+    std::cout << e.what() << std::endl; 
 }
