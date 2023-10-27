@@ -42,7 +42,7 @@ struct Solution {
     }
 
 
-    void solve_rec(int empty_id) { 
+    void solve_rec(int empty_id) {
         if(all_right()) { 
             found = true;
             std::cout << "Starting...\n"; // actually ending
@@ -53,7 +53,7 @@ struct Solution {
         for(int move: moves) { 
             int new_empty = empty_id + move;
 
-            if(new_empty >=0 && new_empty < board.size()) { 
+            if(new_empty >= 0 && new_empty < board.size()) { 
 
                 if(move > 0 && board[new_empty] == '>' || // ensure validity
                    move < 0 && board[new_empty] == '<') { 
@@ -110,13 +110,15 @@ private:
     int empty_space = -1;
     std::vector<char> board;
 
-    static inline const std::vector<int> moves{-2, -1, 1, 2};
+    static inline const std::vector<int> moves{1, -1, -2, 2};
 };
 
 
 
 int main() { 
-    Solution s;
+    int n;
+    std::cin >> n;
+    Solution s(n);
     s.solve();
 
     return 0;
