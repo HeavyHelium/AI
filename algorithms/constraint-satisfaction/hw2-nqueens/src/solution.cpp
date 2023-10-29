@@ -3,6 +3,7 @@
 #include <cassert>
 #include <climits>
 #include <random>
+#include <chrono>
 
 std::mt19937 rng(std::random_device{}()); // Set Mersenne twister
 
@@ -27,16 +28,10 @@ struct Board {
     Board configurations are represented as arrays of size n.
     */
     static inline const int FREE{-1}; 
-
-    std::vector<int> queens;
-    std::vector<int> row_cnts;
-    std::vector<int> primary_cnts;
-    std::vector<int> secondary_cnts;
-
-
+    static inline const int K{2};
 
     Board(int n=8)
-        :queens(n, FREE),
+        :queens(n, Board::FREE),
          row_cnts(n),
          primary_cnts(2 * n - 1, 0),
          secondary_cnts(2 * n - 1, 0) {
@@ -44,9 +39,37 @@ struct Board {
         init_by_min_conf();
     }
 
+    int queen_max_conf() {
+        std::vector<int> col_max_conf;
+        int max_conf = INT_MIN;
+        int curr_conf{42};
+
+        for(int i = 0; i < size(); ++i) {
+            curr_conf = conflicts(i);
+
+            if(curr_conf > max_conf) {
+
+                col_max_conf.clear();
+                col_max_conf.push_back(i);
+                max_conf = curr_conf;
+
+            } else if(curr_conf == max_conf) {
+                col_max_conf.push_back(i);
+            }
+        }
+
+        if(max_conf == 0) {
+            solved = true;
+        }
+
+        int max_col_id = gen_number(col_max_conf.size() - 1);
+        // std::cout << "#confl: " << max_conf << std::endl;
+        return col_max_conf[max_col_id];
+    }
+
     void place_queen(int queen_id, int row) {
         
-        if(queens[queen_id] == FREE) {
+        if(queens[queen_id] == Board::FREE) {
             ++row_cnts[row];
             ++primary_cnts[primary(queen_id, row)];
             ++secondary_cnts[secondary(queen_id, row)];
@@ -59,13 +82,13 @@ struct Board {
     }
 
     void remove_queen(int queen_id) {
-        if(queens[queen_id] != FREE) {
+        if(queens[queen_id] != Board::FREE) {
             int row = queens[queen_id];
 
             --row_cnts[row];
             --primary_cnts[primary(queen_id, row)];
             --secondary_cnts[secondary(queen_id, row)];
-            queens[queen_id] = FREE;
+            queens[queen_id] = Board::FREE;
         }
     }
 
@@ -104,6 +127,30 @@ struct Board {
         return queens.size();
     }
 
+
+    void solve() {
+        int iter{0};
+        const int n = size(); 
+        int col;
+
+        while(iter++ <= Board::K * n) {
+            col = queen_max_conf();
+            place_min_conf(col);
+
+            if(solved) {
+                //std::cout << *this;
+                break;
+            }
+        }
+
+        if(not(solved)) {
+            solve();
+        } else {
+            std::cout << "Solution found!" << std::endl;
+        }
+    }
+
+
     friend std::ostream& operator<<(std::ostream& os,
                                     const Board& b) {
         for(int i = 0; i < b.size(); ++i) { // row-wise
@@ -119,7 +166,7 @@ struct Board {
         return os << std::endl;
     }
 
-    private:
+private:
     void init_by_min_conf() { 
         for(int i = 0; i < size(); ++i) {
             place_min_conf(i);
@@ -127,7 +174,7 @@ struct Board {
     }
 
 
-    /// @brief placed the queen on column queen_id 
+    /// @brief places the queen on column queen_id 
     /// on the row with min #conflicts 
     void place_min_conf(int queen_id) {
 
@@ -155,6 +202,12 @@ struct Board {
     }
 
 
+    std::vector<int> queens;
+    std::vector<int> row_cnts;
+    std::vector<int> primary_cnts;
+    std::vector<int> secondary_cnts;
+    bool solved = false;
+
 };
 
 
@@ -162,11 +215,21 @@ struct Board {
 
 int main() {
 
-    int n = 4;
+    int n = 6;
+    std::cin >> n;
 
-    for(int i = 1; i < 5; ++i) {
-        Board b(n);
-        std::cout << b << std::endl;
+    Board b(n);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    b.solve();
+    auto stop = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
+
+    std::cout << "Execution time: " << duration.count() << "s" << std::endl;
+
+    if(n < 50) {
+        std::cout << b;
     }
 
     return 0;
