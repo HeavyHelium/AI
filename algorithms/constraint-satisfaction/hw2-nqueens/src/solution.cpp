@@ -138,7 +138,6 @@ struct Board {
             place_min_conf(col);
 
             if(solved) {
-                //std::cout << *this;
                 break;
             }
         }
@@ -153,8 +152,8 @@ struct Board {
 
     friend std::ostream& operator<<(std::ostream& os,
                                     const Board& b) {
-        for(int i = 0; i < b.size(); ++i) { // row-wise
-            for(int j = 0; j < b.size(); ++j) { // column-wise
+        for(int i = 0; i < b.size(); ++i) {
+            for(int j = 0; j < b.size(); ++j) {
                 if(b.queens[j] == i) {
                     os << "* ";
                 } else {
@@ -179,7 +178,7 @@ private:
     void place_min_conf(int queen_id) {
 
         std::vector<int> rows_min_conf;
-        int min_conf = INT_MAX; // size() + 1 is sufficient
+        int min_conf = INT_MAX;
         int curr_conf{42};
 
         for(int row = 0; row < size(); ++row) {
