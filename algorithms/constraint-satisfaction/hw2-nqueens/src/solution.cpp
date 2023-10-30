@@ -4,6 +4,7 @@
 #include <climits>
 #include <random>
 #include <chrono>
+#include <stdexcept>
 
 std::mt19937 rng(std::random_device{}()); // Set Mersenne twister
 
@@ -20,6 +21,10 @@ int gen_number(int n) {
     return std::uniform_int_distribution<int>(0, n)(rng);
 }
 
+enum class Initialization {
+    RAND,
+    MIN_CONFL,
+};
 
 
 struct Board {
@@ -28,7 +33,7 @@ struct Board {
     Board configurations are represented as arrays of size n.
     */
     static inline const int FREE{-1}; 
-    static inline const int K{2};
+    static inline const int K{1};
 
     Board(int n=8)
         :queens(n, Board::FREE),
@@ -36,7 +41,9 @@ struct Board {
          primary_cnts(2 * n - 1, 0),
          secondary_cnts(2 * n - 1, 0) {
         
-        init_by_min_conf();
+        if(n == 2 || n == 3) {
+            throw std::runtime_error("No solution exists!");
+        }
     }
 
     int queen_max_conf() {
@@ -63,7 +70,6 @@ struct Board {
         }
 
         int max_col_id = gen_number(col_max_conf.size() - 1);
-        // std::cout << "#confl: " << max_conf << std::endl;
         return col_max_conf[max_col_id];
     }
 
@@ -128,25 +134,37 @@ struct Board {
     }
 
 
-    void solve() {
-        int iter{0};
+    void solve(Initialization init) {
+        int iter{42};
         const int n = size(); 
-        int col;
+        int col{42};
+        //int been_there_done_that = 0;
 
-        while(iter++ <= Board::K * n) {
-            col = queen_max_conf();
-            place_min_conf(col);
-
-            if(solved) {
-                break;
+        while(not(solved)) {
+            //init_by_min_conf();// reintialize
+            if(init == Initialization::RAND) {
+                rand_init();
+            } else {
+                init_by_min_conf();
             }
+                        
+            iter = 0;
+            while(iter++ <= Board::K * n) {
+                col = queen_max_conf(); // this raises the solved flag
+                if(not(solved)) {
+                    place_min_conf(col);
+                }
+
+                if(solved) {
+                    //std::cout << "Took " << been_there_done_that * Board::K * n + iter << " steps\n";
+                    break;
+                }
+            }
+            //++been_there_done_that;
         }
 
-        if(not(solved)) {
-            solve();
-        } else {
-            std::cout << "Solution found!" << std::endl;
-        }
+        std::cout << "Solution found!" << std::endl;
+
     }
 
 
@@ -169,6 +187,15 @@ private:
     void init_by_min_conf() { 
         for(int i = 0; i < size(); ++i) {
             place_min_conf(i);
+        }
+    }
+
+    void rand_init() {
+        int row{42};
+        const int n = size();
+        for(int i = 0; i < n; ++i) {
+            row = gen_number(n - 1);
+            place_queen(i, row);
         }
     }
 
@@ -212,24 +239,27 @@ private:
 
 
 
-int main() {
+int main() try {
 
-    int n = 6;
+    int n;
     std::cin >> n;
 
     Board b(n);
 
     auto start = std::chrono::high_resolution_clock::now();
-    b.solve();
+    b.solve(Initialization::RAND);
     auto stop = std::chrono::high_resolution_clock::now();
     
     auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
 
     std::cout << "Execution time: " << duration.count() << "s" << std::endl;
 
-    if(n < 50) {
+    if(n < 1000) {
         std::cout << b;
     }
 
     return 0;
+
+} catch(std::exception& e) {
+    std::cout << e.what() << std::endl;
 }
