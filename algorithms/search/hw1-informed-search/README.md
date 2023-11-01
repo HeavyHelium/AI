@@ -17,8 +17,8 @@
 <number of steps takes to solve the puzzle, -1 if no solution exists>
 <step_1>
 .....
-<step_K>
-
+<step_i>
+.....
 ```
 
 Where step_i is the ith step in the solution, step_i $\in$ {left, right, down, up}.
@@ -29,6 +29,20 @@ Where step_i is the ith step in the solution, step_i $\in$ {left, right, down, u
 
 ```sh
 g++ solution.cpp -std=c++17 -o a.out
+```
+
+- For running without exexution time output
+
+```sh
+./a.out
+
+```
+
+- For running with execution time output
+
+```sh
+./a,out t
+
 ```
 
 - For testing

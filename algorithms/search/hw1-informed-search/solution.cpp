@@ -7,6 +7,9 @@
 #include <unordered_map>
 #include <utility>
 #include <climits>
+#include <chrono>
+
+
 
 using board = std::vector<std::vector<int>>; // matrix representation
 
@@ -264,7 +267,7 @@ private:
 
         x = zero_id / dim;
         y = zero_id % dim;
-        posistions[0] = { x, y };
+        posistions[0] = {x, y};
 
         for(int i = zero_id + 1; i < len; ++i) {
             x = i / dim;
@@ -292,12 +295,14 @@ struct Solution {
 
     Target& target;
     Board b;
+
     std::vector<std::string> path;
+    int sol_cost = INT_MAX;
 
     /// @brief  performs depth-limited search
     /// @param g the cost function, level-wise
     /// @param threshold determines the termination condition
-    /// @return  FOUND if the goal state is reached and INT_MAX otherwise
+    /// @return  FOUND if the goal state is reached
     int search(int g, int threshold) {
         int h = b.manhattan();
         int f = g + h;
@@ -306,8 +311,7 @@ struct Solution {
         }
 
         if(h == 0) { // Goal state reached
-            std::cout << '\n' << g << std::endl;
-            std::cout << path << std::endl;
+            sol_cost = g;
             return FOUND;
         }
 
@@ -375,11 +379,51 @@ struct Solution {
         return is;
     }
 
+    friend std::ostream& operator<<(std::ostream& os, 
+                                    Solution& s) {
+
+        os << s.sol_cost << '\n';
+    
+        return os << s.path;
+    }
+
 
 };
 
 
-int main() try {
+
+struct ArgParser {
+
+    ArgParser(char** args) {
+        int iter{0};
+
+        while(*(++args)) {
+            ++iter;
+
+            if(iter > 1) {
+                throw std::runtime_error("Wrong argument count!");
+            } else if(*args != std::string("t")) {
+
+                std::cout << *args << std::endl;
+                throw std::runtime_error(usage);
+
+            } else {
+                time = true;
+            }
+        } 
+    }
+
+    
+    bool time{false};
+
+    static inline const std::string usage{"Usage: <program name> <optional: t>"};
+};
+
+
+
+int main(int argc, char** argv) try {
+
+    ArgParser ap(argv);
 
     Target t;
     std::cin >> t;
@@ -387,7 +431,19 @@ int main() try {
     Solution s(t);
     std::cin >> s;
 
-    s.idastar();
+    if(ap.time) {
+        auto start = std::chrono::high_resolution_clock::now();
+        s.idastar();
+        auto stop = std::chrono::high_resolution_clock::now();
+    
+        auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
+        std::cout << "\nExecution time: " << duration.count() << "s\n\n" << std::endl;
+
+    } else {
+        s.idastar();
+    }
+
+    std::cout << s;
 
     return 0;
 
