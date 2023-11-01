@@ -6,7 +6,7 @@ The frogs are positioned in a manner of the kind:
 
 The number of left-looking frogs is equal to the number of right-looking frogs
 
-A frog cannot change its outlook(So don't be one, please)
+A frog cannot change its outlook
 
 The goal state is a configuration of the kind:
 <<..< _ >>..>
@@ -14,39 +14,37 @@ The goal state is a configuration of the kind:
 
 #include <iostream>
 #include <vector>
+#include <chrono>
+#include <stdexcept>
 
 
 struct Solution { 
 
     Solution(int n = 2)
-        :board(2 * n + 1), 
+        :board(2 * n + 1, '_'), 
          empty_space{n} { 
-
-        /*
-        Solve for the symmetric case, so we don't have to reverse the print path
-        */
         
         for(int i = 0; i < n; ++i) { 
-            board[i] = '<';
+            board[i] = 'L';
         }
         board[empty_space] = '_';
         for(int i = n + 1; i < board.size(); ++i) { 
-            board[i] = '>';
+            board[i] = 'R';
         }
         
     }
 
     void solve() { 
+        std::vector<std::string> path;
         solve_rec(empty_space);
-        std::cout << "Goal state reached." << std::endl;
     }
 
 
     void solve_rec(int empty_id) {
         if(all_right()) { 
             found = true;
-            std::cout << "Starting...\n"; // actually ending
-            std::cout << *this;
+            path.push_back(board);
+
             return;
         }
 
@@ -55,8 +53,8 @@ struct Solution {
 
             if(new_empty >= 0 && new_empty < board.size()) { 
 
-                if(move > 0 && board[new_empty] == '>' || // ensure validity
-                   move < 0 && board[new_empty] == '<') { 
+                if(move > 0 && board[new_empty] == 'R' || // ensure validity
+                   move < 0 && board[new_empty] == 'L') { 
 
                     std::swap(board[new_empty], 
                               board[empty_id]);
@@ -66,7 +64,7 @@ struct Solution {
                               board[empty_id]);
 
                     if(found) { 
-                        std::cout << *this;
+                        path.push_back(board);
                         return; // once we find the first solution, we return
                     }
 
@@ -79,20 +77,20 @@ struct Solution {
 
     friend std::ostream& operator<<(std::ostream& os,
                                     const Solution& s) { 
-        for(char elem: s.board) { 
-            os << elem;
+        for(auto iter = s.path.end() - 1; iter >= s.path.begin(); --iter) {
+            os << *iter << '\n';
         }
 
-        return os << '\n';
+        return os << std::endl;
     }
 
 
 private:
 
-    bool all_right() const {  // well, all right left, all left right
+    bool all_right() const {  
         int n = N(); 
         for(int i = 0; i < n; ++i) { 
-            if(board[i] != '>') { 
+            if(board[i] != 'R') { 
                 return false;
             }
         }
@@ -108,18 +106,72 @@ private:
 
     bool found = false;
     int empty_space = -1;
-    std::vector<char> board;
+    std::string board;
+    std::vector<std::string> path;
 
-    static inline const std::vector<int> moves{1, -1, -2, 2};
+    static inline const std::vector<int> moves{-1, 1, 2, -2};
+};
+
+struct ArgParser {
+
+    ArgParser(char** args) {
+        int iter{0};
+
+        while(*(++args)) {
+            ++iter;
+
+            if(iter > 1) {
+                throw std::runtime_error("Wrong argument count!");
+            } else if(*args != std::string("t")) {
+
+                std::cout << *args << std::endl;
+                throw std::runtime_error(usage);
+
+            } else {
+                time = true;
+            }
+        } 
+    }
+
+    
+    bool time{false};
+
+    static inline const std::string usage{"Usage: <program name> <optional: t>"};
 };
 
 
+int main(int argc, char** argv) try { 
 
-int main() { 
+    ArgParser ap(argv);
+    
     int n;
     std::cin >> n;
+    std::cout << std::endl;
+
     Solution s(n);
-    s.solve();
+    
+
+    if(ap.time) {
+
+        auto start = std::chrono::high_resolution_clock::now();
+        s.solve();
+        auto stop = std::chrono::high_resolution_clock::now();
+        
+        auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
+
+        std::cout << "Execution time: " << duration.count() << "s" << std::endl;
+        
+    } else {
+        s.solve();
+    }
+
+    std::cout << s;
 
     return 0;
+
+} catch(const std::exception& e) {
+
+    std::cerr << e.what() << "\n";
+
+    return -1;
 }
