@@ -46,7 +46,6 @@ struct Coordinate {
     }
 }; 
 
-const int PLANE_LIMIT = 100;
 
 struct Coordinates: public std::vector<Coordinate> {
     static inline const int PLANE_LIMIT = 100;    
