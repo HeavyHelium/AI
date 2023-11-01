@@ -177,13 +177,13 @@ private:
 
 };
 
-struct Population: public std::vector<Individual> {
-    void rand_init(const int size, const Coordinates& c) {
-        for(int i = 0; i < size; ++i) {
-            (*this).push_back(Individual(c));
-        }
-    }
-};
+// struct Population: public std::vector<Individual> {
+//     void rand_init(const int size, const Coordinates& c) {
+//         for(int i = 0; i < size; ++i) {
+//             (*this).push_back(Individual(c));
+//         }
+//     }
+// };
 
 struct Solution {
     
