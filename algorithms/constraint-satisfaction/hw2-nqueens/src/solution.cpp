@@ -5,6 +5,7 @@
 #include <random>
 #include <chrono>
 #include <stdexcept>
+#include <iomanip>
 
 std::mt19937 rng(std::random_device{}()); // Set Mersenne twister
 
@@ -42,7 +43,7 @@ struct Board {
          secondary_cnts(2 * n - 1, 0) {
         
         if(n == 2 || n == 3) {
-            throw std::runtime_error("No solution exists!");
+            throw std::runtime_error("-1"); // message modified to adhere to requirements
         }
     }
 
@@ -163,8 +164,18 @@ struct Board {
             //++been_there_done_that;
         }
 
-        std::cout << "Solution found!" << std::endl;
+        //std::cout << "Solution found!" << std::endl;
 
+    }
+
+    void print_test_format() const {
+        if(size()) {
+            std::cout << "[" << queens[0];
+        }
+        for(int i = 1; i < size(); ++i) {
+            std::cout << ", " << queens[i];
+        }
+        std::cout << "]" << std::endl;
     }
 
 
@@ -238,23 +249,71 @@ private:
 
 
 
+struct ArgParser {
 
-int main() try {
+    ArgParser(int argc, char** args) {
+         if(argc > 2) {
+            throw std::runtime_error(usage);
+         } 
+
+         if(argc == 2) { // one arg
+            if(args[1] == std::string("time")) {
+                time = true;
+            } else if(args[1] == std::string("test")) {
+                test = true;
+            } else {
+                throw std::runtime_error(usage);
+            }
+            assert(time ^ test);
+         }
+
+    }
+
+    
+    bool time{false};
+    bool test{false};
+
+    static inline const std::string usage{"Usage: <program name> <optional: time> <optional: test>"};
+};
+
+
+
+
+
+int main(int argc, char** argv) try {
+
+    ArgParser ap(argc, argv);
+    Initialization init = Initialization::RAND;
 
     int n;
     std::cin >> n;
 
     Board b(n);
 
-    auto start = std::chrono::high_resolution_clock::now();
-    b.solve(Initialization::RAND);
-    auto stop = std::chrono::high_resolution_clock::now();
+    if(ap.test) {
     
-    auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
+        b.solve(init);
+        b.print_test_format();
+    
+    } else if(ap.time) { 
+        
+        auto start = std::chrono::high_resolution_clock::now();
+        b.solve(init);
+        auto stop = std::chrono::high_resolution_clock::now();
+        
+        auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
 
-    std::cout << "Execution time: " << duration.count() << "s" << std::endl;
+        if(ap.time) {
+            std::cout << "Execution time: " << 
+                         std::fixed << std::setprecision(2) << 
+                         duration.count() << "s" << std::endl;
+        }
 
-    if(n < 1000) {
+    } else {
+        b.solve(init);
+    }
+
+    if(n < 101) {
         std::cout << b;
     }
 
