@@ -3,7 +3,7 @@
 On an **NxN** chess board place **N** queens so that no two queens share the same row, column or diagonal.  
 Use the **_MinConflicts_** algorithm to solve the problem.
 
-($\forall$ n $\in$ $\mathbb{N}$)[$n$ $\neq$ 2 $\land$ n $\neq$ 3 $\iff$ n-queens has a solution]
+($\forall$ n $\in$ $\mathbb{N}$)[n $\neq$ 2 $\land$ n $\neq$ 3 $\iff$ n-queens has a solution]
 
 ## How to run
 
