@@ -36,7 +36,7 @@ struct Board {
     static inline const int FREE{-1}; 
     static inline const int K{2};
 
-    Board(int n=8)
+    Board(int n=8, Initialization init=Initialization::RAND)
         :queens(n, Board::FREE),
          row_cnts(n),
          primary_cnts(2 * n - 1, 0),
@@ -46,6 +46,13 @@ struct Board {
         if(n == 2 || n == 3) {
             throw std::runtime_error("-1"); // message modified to adhere to requirements
         }
+
+        if(init == Initialization::MIN_CONFL) {
+            init_by_min_conf();
+        } else {
+            rand_init();
+        }
+        
     }
 
     int queen_max_conf() {
@@ -71,6 +78,7 @@ struct Board {
             solved = true;
         }
 
+        // int max_col_id = rand() % col_max_conf.size();
         int max_col_id = gen_number(col_max_conf.size() - 1);
         return col_max_conf[max_col_id];
     }
@@ -119,20 +127,14 @@ struct Board {
         return col + row;
     }
 
-    void solve(Initialization init) {
+    void solve() {
         int iter, col;
-        //int been_there_done_that = 0;
+        // int been_there_done_that = 0;
 
         int limit = Board::K * N;
 
 
         while(not(solved)) {
-
-            if(init == Initialization::RAND) {
-                rand_init();
-            } else {
-                init_by_min_conf();
-            }
             iter = 0;
             while(iter++ <= limit) {
                 col = queen_max_conf(); // this raises the solved flag
@@ -141,14 +143,17 @@ struct Board {
                 }
 
                 if(solved) {
-                    //std::cout << "Took " << been_there_done_that * Board::K * n + iter << " steps\n";
+                    // std::cout << "Took " << been_there_done_that * limit + iter << " steps\n";
                     break;
                 }
             }
-            //++been_there_done_that;
+            if(not(solved)) {
+                rand_init(); // restart
+            }
+            // ++been_there_done_that;
         }
 
-        //std::cout << "Solution found!" << std::endl;
+        // std::cout << "Solution found!" << std::endl;
 
     }
 
@@ -188,9 +193,8 @@ private:
 
     void rand_init() {
         int row;
-        const int n = N;
-        for(int i = 0; i < n; ++i) {
-            row = gen_number(n - 1);
+        for(int i = 0; i < N; ++i) {
+            row = gen_number(N - 1);
             place_queen(i, row);
         }
     }
@@ -269,34 +273,34 @@ struct ArgParser {
 int main(int argc, char** argv) try {
 
     ArgParser ap(argc, argv);
-    Initialization init = Initialization::RAND;
+    Initialization init = Initialization::MIN_CONFL; // Initial initialization
 
     int n;
     std::cin >> n;
+    Board b(n, init);
 
-    Board b(n);
 
     if(ap.test) {
-    
-        b.solve(init);
+        b.solve();
         b.print_test_format();
     
-    } else if(ap.time) { 
-        
+        return 0;
+    } 
+    
+    if(ap.time) { 
         auto start = std::chrono::high_resolution_clock::now();
-        b.solve(init);
+        b.solve();
         auto stop = std::chrono::high_resolution_clock::now();
         
         auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(stop - start);
 
-        if(ap.time) {
-            std::cout << "Execution time: " << 
-                         std::fixed << std::setprecision(2) << 
-                         duration.count() << "s" << std::endl;
-        }
+
+        std::cout << "Execution time: " << 
+                      std::fixed << std::setprecision(2) << 
+                      duration.count() << "s" << std::endl;
 
     } else {
-        b.solve(init);
+        b.solve();
     }
 
     if(n < 101) {
