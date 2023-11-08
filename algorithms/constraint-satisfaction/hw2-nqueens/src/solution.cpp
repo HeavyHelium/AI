@@ -34,13 +34,14 @@ struct Board {
     Board configurations are represented as arrays of size n.
     */
     static inline const int FREE{-1}; 
-    static inline const int K{1};
+    static inline const int K{2};
 
     Board(int n=8)
         :queens(n, Board::FREE),
          row_cnts(n),
          primary_cnts(2 * n - 1, 0),
-         secondary_cnts(2 * n - 1, 0) {
+         secondary_cnts(2 * n - 1, 0),
+         N(n) {
         
         if(n == 2 || n == 3) {
             throw std::runtime_error("-1"); // message modified to adhere to requirements
@@ -50,10 +51,10 @@ struct Board {
     int queen_max_conf() {
         std::vector<int> col_max_conf;
         int max_conf = INT_MIN;
-        int curr_conf{42};
+        int curr_conf;
 
-        for(int i = 0; i < size(); ++i) {
-            curr_conf = conflicts(i);
+        for(int i = 0; i < N; ++i) {
+            curr_conf = conflicts(i, queens[i]);
 
             if(curr_conf > max_conf) {
 
@@ -99,58 +100,41 @@ struct Board {
         }
     }
 
-    int conflicts(int queen_id) const {
-        return row_conflicts(queen_id) +
-               primary_conflicts(queen_id) +
-               secondary_conflicts(queen_id);
+    int conflicts(int queen_id, int row) const {
+
+        int total = row_cnts[row] +
+                    primary_cnts[primary(queen_id, row)] +
+                    secondary_cnts[(secondary(queen_id, row))];
+        
+        return row == queens[queen_id] ? total - 3 : total; 
     }
 
-    int row_conflicts(int queen_id) const {
-        int row_id = queens[queen_id];
-        return row_cnts[row_id] - 1;
-    }
 
 
     int primary(int col, int row) const {
-        return col - row + size() - 1;
+        return col - row + N - 1;
     }
 
     int secondary(int col, int row) const {
         return col + row;
     }
 
-    int primary_conflicts(int queen_id) const {
-        return primary_cnts[primary(queen_id, 
-                                    queens[queen_id])] - 1;
-    }
-
-    int secondary_conflicts(int queen_id) const {
-        return secondary_cnts[secondary(queen_id, 
-                                        queens[queen_id])] - 1;
-    }
-
-
-    int size() const {
-        return queens.size();
-    }
-
-
     void solve(Initialization init) {
-        int iter{42};
-        const int n = size(); 
-        int col{42};
+        int iter, col;
         //int been_there_done_that = 0;
 
+        int limit = Board::K * N;
+
+
         while(not(solved)) {
-            //init_by_min_conf();// reintialize
+
             if(init == Initialization::RAND) {
                 rand_init();
             } else {
                 init_by_min_conf();
             }
-                        
             iter = 0;
-            while(iter++ <= Board::K * n) {
+            while(iter++ <= limit) {
                 col = queen_max_conf(); // this raises the solved flag
                 if(not(solved)) {
                     place_min_conf(col);
@@ -169,10 +153,11 @@ struct Board {
     }
 
     void print_test_format() const {
-        if(size()) {
-            std::cout << "[" << queens[0];
+        std::cout << "[";
+        if(N) {
+            std::cout << queens[0];
         }
-        for(int i = 1; i < size(); ++i) {
+        for(int i = 1; i < N; ++i) {
             std::cout << ", " << queens[i];
         }
         std::cout << "]" << std::endl;
@@ -181,8 +166,8 @@ struct Board {
 
     friend std::ostream& operator<<(std::ostream& os,
                                     const Board& b) {
-        for(int i = 0; i < b.size(); ++i) {
-            for(int j = 0; j < b.size(); ++j) {
+        for(int i = 0; i < b.N; ++i) {
+            for(int j = 0; j < b.N; ++j) {
                 if(b.queens[j] == i) {
                     os << "* ";
                 } else {
@@ -196,14 +181,14 @@ struct Board {
 
 private:
     void init_by_min_conf() { 
-        for(int i = 0; i < size(); ++i) {
+        for(int i = 0; i < N; ++i) {
             place_min_conf(i);
         }
     }
 
     void rand_init() {
-        int row{42};
-        const int n = size();
+        int row;
+        const int n = N;
         for(int i = 0; i < n; ++i) {
             row = gen_number(n - 1);
             place_queen(i, row);
@@ -217,11 +202,11 @@ private:
 
         std::vector<int> rows_min_conf;
         int min_conf = INT_MAX;
-        int curr_conf{42};
+        int curr_conf;
 
-        for(int row = 0; row < size(); ++row) {
-            place_queen(queen_id, row);
-            curr_conf = conflicts(queen_id);
+        for(int row = 0; row < N; ++row) {
+            //place_queen(queen_id, row);
+            curr_conf = conflicts(queen_id, row);
 
             if(curr_conf < min_conf) {
                 rows_min_conf.clear();
@@ -243,6 +228,7 @@ private:
     std::vector<int> row_cnts;
     std::vector<int> primary_cnts;
     std::vector<int> secondary_cnts;
+    const int N;
     bool solved = false;
 
 };
