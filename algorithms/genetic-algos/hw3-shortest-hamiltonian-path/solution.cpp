@@ -6,6 +6,7 @@
 #include <random>
 #include <algorithm>
 #include <cassert>
+#include <numeric>
 
 
 std::mt19937 rng(std::random_device{}()); // Set Mersenne Twister
@@ -354,6 +355,10 @@ struct Solution {
             two_point();
         }
 
+    }
+
+    int sum_of_fitness() const {
+        return INT_MIN;   
     }
 
     const Individual& get_fittest() const {
