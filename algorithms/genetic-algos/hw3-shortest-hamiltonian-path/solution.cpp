@@ -129,6 +129,18 @@ struct Individual {
         std::swap(path[id1], path[id2]);
     } 
 
+    /// @brief inversion mutation
+    void mutate_inv() {
+        int i = gen_number(size() - 1);
+        int j = gen_number(size() - 1);
+
+        if(i > j) {
+            std::swap(i, j);
+        }        
+    
+        std::reverse(path.begin() + i, path.begin() + j + 1);    
+    }
+
     ///@bried two point crossover, assumes i <= j
 
     static Individual child1_twopoint(const Individual& i1,
@@ -175,7 +187,7 @@ struct Individual {
 
         Individual ch1 = Individual(res_path, c);
         // std::cout << "rp: " << res_path << std::endl;
-        ch1.mutate();
+        ch1.mutate_inv();
 
         return ch1;
     } 
@@ -223,7 +235,7 @@ struct Individual {
         }
 
         Individual ch(res_path, c);
-        ch.mutate();
+        ch.mutate_inv();
 
         return ch;
     }
@@ -353,9 +365,6 @@ struct Solution {
 
     /// @brief Roulette Wheel Selection
     std::vector<int> selection() {
-        // Roulette wheel selection 
-        
-        
         int id{-1};
         const double sum = sum_fitness();
        
@@ -368,25 +377,17 @@ struct Solution {
             ++selection_cnt;
         }
 
-        
-
         p.sort();
 
         std::vector<double> probs(population_size);
         
-
-
         std::transform(p.begin(), p.end(), probs.begin(), [&sum, &prob_prev_cuml]
                                                           (const Individual& i) { 
                                                             prob_prev_cuml += i.fitness / sum;
                                                             return prob_prev_cuml; // CDF calculation 
-                                               
                                                            }); 
 
-                                                           
-        
         std::vector<int> selected;
-
         int cnt = 0;
 
         while(cnt < selection_cnt) {
@@ -480,7 +481,7 @@ int main() {
     // Solution s(5, 100, 10, cs);
     // s.solve();
 
-    const int max_iter = 10000;
+    const int max_iter = 1000;
 
     int N;
     std::cin >> N;
