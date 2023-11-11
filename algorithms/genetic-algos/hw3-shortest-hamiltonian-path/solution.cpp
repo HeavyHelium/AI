@@ -8,9 +8,14 @@
 #include <cassert>
 #include <numeric>
 #include <iomanip>
+#include <unordered_map>
+#include <functional>
+#include <cstddef>
+
 
 
 std::mt19937 rng(std::random_device{}()); // Set Mersenne Twister
+
 
 /// Utility functions
 template<typename T>
@@ -45,15 +50,19 @@ enum class Crossover {
 
 
 struct Coordinate {
-    int x{-1};
-    int y{-1};
+    double x{-1};
+    double y{-1};
 
     double distance(const Coordinate& other) const {
         int d{0};
 
-        return std::pow((x - other.x), 2) +
-               std::pow((y - other.y), 2);
+        return std::sqrt(std::pow((x - other.x), 2) +
+                         std::pow((y - other.y), 2));
     }
+
+    bool operator==(const Coordinate& other) const {
+        return x == other.x && y == other.y;
+    } 
 
     friend std::ostream& operator<<(std::ostream& os,
                                     const Coordinate& c) {
@@ -62,8 +71,24 @@ struct Coordinate {
 }; 
 
 
+template<>
+struct std::hash<Coordinate> {
+    std::size_t operator()(const Coordinate& c) const {
+        std::size_t hash1 = std::hash<double>{}(c.x);
+        std::size_t hash2 = std::hash<double>{}(c.y);
+
+        return hash1 ^ (hash2 << 1);
+    }
+};
+
+
+
+using city_dict = std::unordered_map<Coordinate, std::string>;
+
+
+
 struct Coordinates: public std::vector<Coordinate> {
-    static inline const int PLANE_LIMIT = 10;
+    static inline const int PLANE_LIMIT = 900;
 
     Coordinates(const std::vector<Coordinate>& vec) {
         for(const Coordinate& c: vec) {
@@ -76,7 +101,7 @@ struct Coordinates: public std::vector<Coordinate> {
 
     double max_cost() const {
         int temp = PLANE_LIMIT * PLANE_LIMIT;
-        return 2 * temp * (size() - 1); 
+        return std::sqrt(2 * temp * (size() - 1)); 
     }
 
 private:
@@ -84,8 +109,8 @@ private:
         resize(n);
 
         for(int i = 0; i < n; ++i) {
-            ((*this)[i]).x = gen_number(PLANE_LIMIT);
-            ((*this)[i]).y = gen_number(PLANE_LIMIT);
+            ((*this)[i]).x = gen_number(PLANE_LIMIT - 1);
+            ((*this)[i]).y = gen_number(PLANE_LIMIT - 1);
         }
     }
 
@@ -97,21 +122,21 @@ private:
 
 
 struct Individual {
-    double fitness{0};
+    double unfitness{0};
     std::vector<int> path;
 
     Individual(const std::vector<int>& path,
                const Coordinates& c)
         : path(path) {
 
-        fitness = calc_fitness(c);
+        calc_unfitness(c);
 
 
     }
 
     Individual(const Coordinates& c) {
         rand_init(c.size());
-        fitness = calc_fitness(c);
+        calc_unfitness(c);
     }
 
     /// @brief 
@@ -121,16 +146,17 @@ struct Individual {
     }
 
     /// @brief random swap mutation 
-    void mutate() {
+    void mutate(const Coordinates& c) {
         const int limit = size() - 1;
         int id1 = gen_number(limit);
         int id2 = gen_number(limit);
 
         std::swap(path[id1], path[id2]);
+        calc_unfitness(c);
     } 
 
     /// @brief inversion mutation
-    void mutate_inv() {
+    void mutate_inv(const Coordinates& c) {
         int i = gen_number(size() - 1);
         int j = gen_number(size() - 1);
 
@@ -139,6 +165,8 @@ struct Individual {
         }        
     
         std::reverse(path.begin() + i, path.begin() + j + 1);    
+
+        calc_unfitness(c);
     }
 
     ///@bried two point crossover, assumes i <= j
@@ -187,7 +215,7 @@ struct Individual {
 
         Individual ch1 = Individual(res_path, c);
         // std::cout << "rp: " << res_path << std::endl;
-        ch1.mutate_inv();
+        ch1.mutate_inv(c);
 
         return ch1;
     } 
@@ -235,7 +263,7 @@ struct Individual {
         }
 
         Individual ch(res_path, c);
-        ch.mutate_inv();
+        ch.mutate_inv(c);
 
         return ch;
     }
@@ -248,14 +276,6 @@ struct Individual {
         return child1_onepoint(i2, i1, c, point);
     }
 
-    bool operator>(const Individual& other) const { // for the min heap
-        return fitness > other.fitness;
-    }
-
-    bool operator<(const Individual& other) const {
-        return other > *this;
-    }
-
 
     friend std::ostream& operator<<(std::ostream& os,
                                     const Individual& id) {
@@ -263,7 +283,7 @@ struct Individual {
             os << id.path[i] << " ";
         }
         os << '\n';
-        os << "fitness: " << id.fitness;
+        os << "unfitness: " << id.unfitness;
         return os << '\n';
     }
 
@@ -277,21 +297,19 @@ private:
         std::random_shuffle(path.begin(), path.end());
     }
 
-    double calc_fitness(const Coordinates& c) {
+    void calc_unfitness(const Coordinates& c) {
         if(path.size() < 2) {
-            return 0;
+            unfitness = 0;
+            return;
         }
 
         double res{0};
-        
 
         for(int i = 0; i < path.size() - 1; ++i) {
             res += c[path[i]].distance(c[path[i + 1]]);
         }
 
-
-
-        return c.max_cost() - res;
+        unfitness = res;
     }
 
 };
@@ -307,14 +325,7 @@ struct Population: public std::vector<Individual> {
         std::sort(this->begin(), this->end(), 
                   [](const Individual& i1,
                      const Individual& i2) {
-                     return i1.fitness < i2.fitness; }); // sort the population by fitness
-    }
-
-    void sort_rev() {
-        std::sort(this->begin(), this->end(), 
-                  [](const Individual& i1,
-                     const Individual& i2) {
-                     return i1.fitness > i2.fitness; }); // sort the population by fitness
+                     return i1.unfitness < i2.unfitness; }); // sort the population by fitness
     }
 };
 
@@ -340,7 +351,6 @@ struct Solution {
           population_size(population_size), 
           crsvr(crsvr),
           c(vertex_cnt) { // random initialization of coordiantes
-        
 
         p.rand_init(population_size, c);
         // std::cout << c << std::endl;            
@@ -359,14 +369,18 @@ struct Solution {
 
 
     double sum_fitness() const {
-        return std::accumulate(p.begin(), p.end(), 0.0,
-                               [](double a, const Individual& i){return a + i.fitness;});
+        const double max_cost = c.max_cost();
+        return std::accumulate(p.begin(), 
+                               p.end(), 0.0, 
+                               [&max_cost](double a, const Individual& i) { 
+                                           return a + max_cost - i.unfitness;});
     }
 
     /// @brief Roulette Wheel Selection
     std::vector<int> selection() {
         int id{-1};
         const double sum = sum_fitness();
+        const double max_cost = c.max_cost();
        
         double prob_prev_cuml{0};
         double prob_temp{0};
@@ -381,11 +395,11 @@ struct Solution {
 
         std::vector<double> probs(population_size);
         
-        std::transform(p.begin(), p.end(), probs.begin(), [&sum, &prob_prev_cuml]
-                                                          (const Individual& i) { 
-                                                            prob_prev_cuml += i.fitness / sum;
+        std::transform(p.begin(), p.end(), probs.begin(), 
+                       [&sum, &prob_prev_cuml, &max_cost](const Individual& i) { 
+                                                            prob_prev_cuml += (max_cost - i.unfitness) / sum;
                                                             return prob_prev_cuml; // CDF calculation 
-                                                           }); 
+                                                         }); 
 
         std::vector<int> selected;
         int cnt = 0;
@@ -447,7 +461,7 @@ struct Solution {
     }
 
     void merge_generations() {
-        p.sort_rev();
+        p.sort();
         p.erase(p.begin() + population_size, p.end());
     }
 
@@ -469,8 +483,7 @@ struct Solution {
 };
 
 
-
-int main() {
+int main(int argc, char** argv) {
     // std::vector<Coordinate> cs{ {5, 3}, {1, 4},
     //                             {8, 8}, {8, 7},
     //                             {9, 7}, {1, 1}, 
@@ -478,16 +491,50 @@ int main() {
     //                             {8, 7}, {10, 5} };
 
     
-    // Solution s(5, 100, 10, cs);
+    std::vector<Coordinate> cs{ {500.000190032, 499.999714054}, 
+                                {883.4580000000001, 499.999391244},
+                                {472.9794, 217.24200000000002}, 
+                                {835.751, 230.423}, 
+                                {569.4331, 253.22}, 
+                                {668.521, 531.4012}, 
+                                {820.35, 339.1}, 
+                                {679.933, 181.969}, 
+                                {992.671, 368.437}, 
+                                {612.198, 389.43899999999996}, 
+                                {806.3199999999999, 391.90999999999997}, 
+                                {717.343, 52.911}, };
+
+
+    std::vector<std::string> cities{"Aberystwyth", "Brighton", 
+                                    "Edinburgh", "Exeter", 
+                                    "Glasgow", "Inverness",
+                                    "Liverpool", "London",
+                                    "Newcastle", "Nottingham",
+                                    "Oxford", "Stratford"};
+
+
+
+    Solution s(50, 500, cs.size(), cs);
+    s.solve();
+
+    for(int i = 0; i < cs.size(); ++i) {
+
+        std::cout << cities[((s.p[0]).path)[i]] << std::endl;
+    }
+
+    // Individual temp({ 0, 5, 9, 4, 2, 7, 11, 3, 6, 10, 1, 8, }, cs);
+    // std::cout << temp.unfitness << std::endl;
+
+
+    // const int max_iter = 100;
+
+    // int N;
+    // std::cin >> N;
+
+    // Solution s(5, max_iter, N);
     // s.solve();
 
-    const int max_iter = 1000;
 
-    int N;
-    std::cin >> N;
-
-    Solution s(N / 2 + 1, max_iter, N);
-    s.solve();
 
     // s.crossover();
     // assert(s.p.size() == s.population_size);
