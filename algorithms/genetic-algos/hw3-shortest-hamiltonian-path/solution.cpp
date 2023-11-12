@@ -18,6 +18,13 @@ std::mt19937 rng(std::random_device{}()); // Set Mersenne Twister
 
 
 /// Utility functions
+
+bool approx_equal(const double d1,
+                  const double d2, 
+                  const double epsilon=1e-2) {
+    return std::abs(d1 - d2) < epsilon;
+}
+
 template<typename T>
 std::ostream& operator<<(std::ostream& os,
                          const std::vector<T>& v) {
@@ -40,12 +47,10 @@ double gen_prob() {
 
 /// End of utility functions
 
-
 enum class Crossover {
     ONE_POINT,
     TWO_POINT,
 };
-
 
 
 
@@ -69,21 +74,6 @@ struct Coordinate {
         return os << "(" << c.x << ", " << c.y << ")"; 
     }
 }; 
-
-
-template<>
-struct std::hash<Coordinate> {
-    std::size_t operator()(const Coordinate& c) const {
-        std::size_t hash1 = std::hash<double>{}(c.x);
-        std::size_t hash2 = std::hash<double>{}(c.y);
-
-        return hash1 ^ (hash2 << 1);
-    }
-};
-
-
-
-using city_dict = std::unordered_map<Coordinate, std::string>;
 
 
 
@@ -116,12 +106,9 @@ private:
 
 };
 
-
-
-
-
-
 struct Individual {
+    static const inline double MUTATION_PROB = 0.1;
+
     double unfitness{0};
     std::vector<int> path;
 
@@ -146,7 +133,7 @@ struct Individual {
     }
 
     /// @brief random swap mutation 
-    void mutate(const Coordinates& c) {
+    void mutate_swap(const Coordinates& c) {
         const int limit = size() - 1;
         int id1 = gen_number(limit);
         int id2 = gen_number(limit);
@@ -215,7 +202,7 @@ struct Individual {
 
         Individual ch1 = Individual(res_path, c);
         // std::cout << "rp: " << res_path << std::endl;
-        ch1.mutate_inv(c);
+        //ch1.mutate_inv(c);
 
         return ch1;
     } 
@@ -263,7 +250,7 @@ struct Individual {
         }
 
         Individual ch(res_path, c);
-        ch.mutate_inv(c);
+        //ch.mutate_inv(c);
 
         return ch;
     }
@@ -332,6 +319,8 @@ struct Population: public std::vector<Individual> {
 struct Solution {
 
     static const inline double SELECTION_PROP = 0.5;
+    static const int STOP_CNT = 5; // We consider the algorithm has converged 
+                                   // after STOP_CNT consequitive equal results
     
     Coordinates c;
     Population p;
@@ -358,10 +347,9 @@ struct Solution {
 
     Solution(const int population_size, 
              const int max_iter, 
-             const int vertex_cnt, 
              const Coordinates& c)
         : max_iter(max_iter),
-          path_len(vertex_cnt),
+          path_len(c.size()),
           population_size(population_size), c(c) {
         
         p.rand_init(population_size, c);
@@ -385,42 +373,31 @@ struct Solution {
         double prob_prev_cuml{0};
         double prob_temp{0};
 
-
         int selection_cnt = SELECTION_PROP * population_size;
         if(selection_cnt % 2 != 0) {
             ++selection_cnt;
         }
-
         p.sort();
 
         std::vector<double> probs(population_size);
-        
         std::transform(p.begin(), p.end(), probs.begin(), 
                        [&sum, &prob_prev_cuml, &max_cost](const Individual& i) { 
                                                             prob_prev_cuml += (max_cost - i.unfitness) / sum;
-                                                            return prob_prev_cuml; // CDF calculation 
-                                                         }); 
-
+                                                            return prob_prev_cuml;}); // CDF calculation 
         std::vector<int> selected;
         int cnt = 0;
 
         while(cnt < selection_cnt) {
-
             prob_temp = gen_prob();
             for(int i = 0; i < p.size(); ++i) {
-
                 id = 0;
-
                 while(prob_temp > probs[id] && prob_temp < probs.back()) { 
                     ++id;
                 }
-            
                 selected.push_back(id);
                 ++cnt;
             }
         }
-    
-
 
         return selected;
     }
@@ -432,8 +409,6 @@ struct Solution {
         int point1, point2;
 
         for(int i = 0; i < parents.size() / 2; ++i) {
-            
-        
             parent_id1 = i;
             parent_id2 = i + parents.size() / 2;
 
@@ -445,106 +420,98 @@ struct Solution {
 
             Individual child1 = Individual::child1_twopoint(p[parent_id1], 
                                                             p[parent_id2],
-                                                            c, point1, point2);
-
-            
+                                                            c, point1, point2);   
 
             Individual child2 = Individual::child2_twopoint(p[parent_id1], 
                                                             p[parent_id2], 
                                                             c, point1, point2);
-
             p.push_back(child1);
             p.push_back(child2);
         }
 
-        merge_generations();   
+        mutate_children();
+        form_new_generation();   
     }
 
-    void merge_generations() {
+    void mutate_children() {
+        for(auto iter = p.begin() + population_size; iter < p.end(); ++iter) {
+            if(gen_prob() < Individual::MUTATION_PROB) {
+                iter->mutate_inv(c);
+            }
+        }
+    }
+
+    void form_new_generation() {// think about alternative ways
         p.sort();
         p.erase(p.begin() + population_size, p.end());
     }
 
-
-
     void solve() {
+        const int mod = max_iter / 10;
+        // int reps = 0;
+        // double prev = INT_MIN;
 
-        int mod = max_iter / 10;
-
-        for(int i = 0; i < max_iter; ++i) {
+        for(int i = 0; i < max_iter /*&& reps < Solution::STOP_CNT*/; ++i) {
             crossover();
-            if(i % mod == 0 || i == max_iter - 1) {
-              std::cout << "Epoch " << i + 1 << ": " << p[0] << std::endl;
-
+            if(i % mod == 0 || 
+               i == max_iter - 1 /*||
+               reps == Solution::STOP_CNT - 1*/) {
+              
+              std::cout << "Epoch " << i + 1 << //": " << p[0] << std::endl;
+                           ": " << p[0].unfitness << '\n';
             }
-        } 
+            // if(approx_equal(prev, p[0].unfitness)) {
+            //     ++reps;
+            // } else {
+            //     reps = 1;
+            //     prev = p[0].unfitness;
+            // }
+        }
+        std::cout << std::endl; 
     }
-
 };
 
 
 int main(int argc, char** argv) {
-    // std::vector<Coordinate> cs{ {5, 3}, {1, 4},
-    //                             {8, 8}, {8, 7},
-    //                             {9, 7}, {1, 1}, 
-    //                             {2, 0}, {7, 9}, 
-    //                             {8, 7}, {10, 5} };
+    const bool testing = true;
+    // const bool testing = false;
+    const int max_iter = 10000;
+    const int population_size = 50;
 
-    
-    std::vector<Coordinate> cs{ {500.000190032, 499.999714054}, 
-                                {883.4580000000001, 499.999391244},
-                                {472.9794, 217.24200000000002}, 
-                                {835.751, 230.423}, 
-                                {569.4331, 253.22}, 
-                                {668.521, 531.4012}, 
-                                {820.35, 339.1}, 
-                                {679.933, 181.969}, 
-                                {992.671, 368.437}, 
-                                {612.198, 389.43899999999996}, 
-                                {806.3199999999999, 391.90999999999997}, 
-                                {717.343, 52.911}, };
-
-
-    std::vector<std::string> cities{"Aberystwyth", "Brighton", 
-                                    "Edinburgh", "Exeter", 
-                                    "Glasgow", "Inverness",
-                                    "Liverpool", "London",
-                                    "Newcastle", "Nottingham",
-                                    "Oxford", "Stratford"};
+    if(testing) {
+        std::vector<Coordinate> cs{ {500.000190032, 499.999714054}, // translated so as to be non-negative
+                                    {883.4580000000001, 499.999391244},
+                                    {472.9794, 217.24200000000002}, 
+                                    {835.751, 230.423}, 
+                                    {569.4331, 253.22}, 
+                                    {668.521, 531.4012}, 
+                                    {820.35, 339.1}, 
+                                    {679.933, 181.969}, 
+                                    {992.671, 368.437}, 
+                                    {612.198, 389.43899999999996}, 
+                                    {806.3199999999999, 391.90999999999997}, 
+                                    {717.343, 52.911}, };
 
 
+        std::vector<std::string> cities{"Aberystwyth", "Brighton",
+                                        "Edinburgh", "Exeter",
+                                        "Glasgow", "Inverness",
+                                        "Liverpool", "London",
+                                        "Newcastle", "Nottingham",
+                                        "Oxford", "Stratford"};
 
-    Solution s(50, 500, cs.size(), cs);
-    s.solve();
+        Solution s(50, 1000, cs);
+        s.solve();
+        for(int i = 0; i < cs.size(); ++i) {
+            std::cout << cities[((s.p[0]).path)[i]] << std::endl;
+        }
 
-    for(int i = 0; i < cs.size(); ++i) {
+    } else {
+        int N;
+        std::cin >> N;
 
-        std::cout << cities[((s.p[0]).path)[i]] << std::endl;
+        Solution s(100, max_iter, N);
+        s.solve();
     }
-
-    // Individual temp({ 0, 5, 9, 4, 2, 7, 11, 3, 6, 10, 1, 8, }, cs);
-    // std::cout << temp.unfitness << std::endl;
-
-
-    // const int max_iter = 100;
-
-    // int N;
-    // std::cin >> N;
-
-    // Solution s(5, max_iter, N);
-    // s.solve();
-
-
-
-    // s.crossover();
-    // assert(s.p.size() == s.population_size);
-
-    // s.crossover();
-    // std::cout << s.p << std::endl;
-     
-    // std::cout << "Child 2\n";
-    // std::cout << ch2;
-
-
     return 0;
 }
