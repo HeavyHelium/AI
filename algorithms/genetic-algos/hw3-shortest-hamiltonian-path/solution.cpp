@@ -10,9 +10,7 @@
 #include <functional>
 #include <cstddef>
 
-
 std::mt19937 rng(std::random_device{}()); // Set Mersenne Twister
-
 
 /// Utility functions
 
@@ -48,7 +46,6 @@ enum class Crossover {
     ONE_POINT,
     TWO_POINT,
 };
-
 
 
 struct Coordinate {
@@ -297,14 +294,11 @@ struct Population: public std::vector<Individual> {
 
 struct Solution {
     static const inline double ELITISM_PROP = 0.3;
-    static const int STOP_CNT = 5;
     
     Coordinates c;
-    
     const int max_iter;
     const int path_len;
     const int population_size;
-
     Crossover crsvr;
     
     Solution(const int population_size, 
@@ -338,24 +332,15 @@ struct Solution {
 
     void solve() {
         const int mod = max_iter / 10;
-        // int reps = 0;
-        // double prev = INT_MIN;
 
-        for(int i = 0; i < max_iter /*&& reps < Solution::STOP_CNT*/; ++i) {
+        for(int i = 0; i < max_iter; ++i) {
             crossover();
             if(i % mod == 0 || 
-               i == max_iter - 1 /*||
-               reps == Solution::STOP_CNT - 1*/) {
+               i == max_iter - 1) {
               
-              std::cout << "Epoch " << i + 1 << //": " << p[0] << std::endl;
+              std::cout << "Epoch " << i + 1 << 
                            ": " << p[0].unfitness << '\n';
             }
-            // if(approx_equal(prev, p[0].unfitness)) {
-            //     ++reps;
-            // } else {
-            //     reps = 1;
-            //     prev = p[0].unfitness;
-            // }
         }
         std::cout << std::endl; 
     }
