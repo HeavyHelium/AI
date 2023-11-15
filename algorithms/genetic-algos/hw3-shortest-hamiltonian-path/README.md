@@ -7,7 +7,7 @@ The program generates N points on a 2D plane and aims to find the Shortest Hamil
 - Compile
 
 ```sh
-g++ fn82140_hw3_solution.cpp -std=c++17 -o a.out
+g++ solution.cpp -std=c++17 -o a.out
 ```
 
 - To run in input mode, i.e. the user inputs the number of cities **N**
