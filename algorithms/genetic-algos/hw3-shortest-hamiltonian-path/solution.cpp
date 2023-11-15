@@ -59,8 +59,6 @@ struct Coordinate {
     double y{-1};
 
     double distance(const Coordinate& other) const {
-        int d{0};
-
         return std::sqrt(std::pow((x - other.x), 2) +
                          std::pow((y - other.y), 2));
     }
@@ -91,7 +89,7 @@ struct Coordinates: public std::vector<Coordinate> {
 
     double max_cost() const {
         int temp = PLANE_LIMIT * PLANE_LIMIT;
-        return std::sqrt(2 * temp * (size() - 1)); 
+        return std::sqrt(2 * temp) * (size() - 1); 
     }
 
 private:
@@ -99,15 +97,15 @@ private:
         resize(n);
 
         for(int i = 0; i < n; ++i) {
-            ((*this)[i]).x = gen_number(PLANE_LIMIT - 1);
-            ((*this)[i]).y = gen_number(PLANE_LIMIT - 1);
+            ((*this)[i]).x = gen_number(PLANE_LIMIT);
+            ((*this)[i]).y = gen_number(PLANE_LIMIT);
         }
     }
 
 };
 
 struct Individual {
-    static const inline double MUTATION_PROB = 0.1;
+    static const inline double MUTATION_PROB = 0.8;
 
     double unfitness{0};
     std::vector<int> path;
@@ -117,8 +115,6 @@ struct Individual {
         : path(path) {
 
         calc_unfitness(c);
-
-
     }
 
     Individual(const Coordinates& c) {
@@ -126,8 +122,6 @@ struct Individual {
         calc_unfitness(c);
     }
 
-    /// @brief 
-    /// @return the length of the path 
     int size() const {
         return path.size();
     }
@@ -156,15 +150,12 @@ struct Individual {
         calc_unfitness(c);
     }
 
-    ///@bried two point crossover, assumes i <= j
-
+    ///@bried two point crossover
     static Individual child1_twopoint(const Individual& i1,
                                       const Individual& i2, 
                                       const Coordinates& c,
                                       const int i, 
                                       const int j) {
-
-        // std::cout << i << ", " << j << std::endl;
 
         if(i == j) {
             return child1_onepoint(i1, i2, c, i);
@@ -198,13 +189,7 @@ struct Individual {
             }
         }
 
-        // std::cout << "parents: \n" << i1 << "\n" << i2 << "\n";
-
-        Individual ch1 = Individual(res_path, c);
-        // std::cout << "rp: " << res_path << std::endl;
-        //ch1.mutate_inv(c);
-
-        return ch1;
+        return Individual(res_path, c);
     } 
 
     static Individual child2_twopoint(const Individual& i1, 
@@ -249,10 +234,7 @@ struct Individual {
             }
         }
 
-        Individual ch(res_path, c);
-        //ch.mutate_inv(c);
-
-        return ch;
+        return Individual(res_path, c);
     }
     /// @brief one point crossover 
     static Individual child2_onepoint(const Individual& i1, 
@@ -271,7 +253,7 @@ struct Individual {
         }
         os << '\n';
         os << "unfitness: " << id.unfitness;
-        return os << '\n';
+        return os << std::endl;
     }
 
 private:
@@ -308,8 +290,8 @@ struct Population: public std::vector<Individual> {
         }
     }
 
-    void sort() {
-        std::sort(this->begin(), this->end(), 
+    void sort(int beg, int end) {
+        std::sort(this->begin() + beg, this->begin() + end, 
                   [](const Individual& i1,
                      const Individual& i2) {
                      return i1.unfitness < i2.unfitness; }); // sort the population by fitness
@@ -317,13 +299,10 @@ struct Population: public std::vector<Individual> {
 };
 
 struct Solution {
-
-    static const inline double SELECTION_PROP = 0.5;
-    static const int STOP_CNT = 5; // We consider the algorithm has converged 
-                                   // after STOP_CNT consequitive equal results
+    static const inline double ELITISM_PROP = 0.3;
+    static const int STOP_CNT = 5;
     
     Coordinates c;
-    Population p;
     
     const int max_iter;
     const int path_len;
@@ -338,112 +317,26 @@ struct Solution {
         : max_iter(max_iter),
           path_len(vertex_cnt),
           population_size(population_size), 
-          crsvr(crsvr),
-          c(vertex_cnt) { // random initialization of coordiantes
+          crsvr(crsvr), c(vertex_cnt) { // random initialization of coordiantes
 
         p.rand_init(population_size, c);
-        // std::cout << c << std::endl;            
     }
 
     Solution(const int population_size, 
              const int max_iter, 
-             const Coordinates& c)
+             const Coordinates& c, 
+             Crossover crsvr = Crossover::TWO_POINT)
         : max_iter(max_iter),
           path_len(c.size()),
-          population_size(population_size), c(c) {
+          population_size(population_size), 
+          c(c), crsvr(crsvr) {
         
         p.rand_init(population_size, c);
     }
 
 
-    double sum_fitness() const {
-        const double max_cost = c.max_cost();
-        return std::accumulate(p.begin(), 
-                               p.end(), 0.0, 
-                               [&max_cost](double a, const Individual& i) { 
-                                           return a + max_cost - i.unfitness;});
-    }
-
-    /// @brief Roulette Wheel Selection
-    std::vector<int> selection() {
-        int id{-1};
-        const double sum = sum_fitness();
-        const double max_cost = c.max_cost();
-       
-        double prob_prev_cuml{0};
-        double prob_temp{0};
-
-        int selection_cnt = SELECTION_PROP * population_size;
-        if(selection_cnt % 2 != 0) {
-            ++selection_cnt;
-        }
-        p.sort();
-
-        std::vector<double> probs(population_size);
-        std::transform(p.begin(), p.end(), probs.begin(), 
-                       [&sum, &prob_prev_cuml, &max_cost](const Individual& i) { 
-                                                            prob_prev_cuml += (max_cost - i.unfitness) / sum;
-                                                            return prob_prev_cuml;}); // CDF calculation 
-        std::vector<int> selected;
-        int cnt = 0;
-
-        while(cnt < selection_cnt) {
-            prob_temp = gen_prob();
-            for(int i = 0; i < p.size(); ++i) {
-                id = 0;
-                while(prob_temp > probs[id] && prob_temp < probs.back()) { 
-                    ++id;
-                }
-                selected.push_back(id);
-                ++cnt;
-            }
-        }
-
-        return selected;
-    }
-
-    void crossover() {
-        std::vector<int> parents = selection();
-        int parent_id1{-1};
-        int parent_id2{-1};
-        int point1, point2;
-
-        for(int i = 0; i < parents.size() / 2; ++i) {
-            parent_id1 = i;
-            parent_id2 = i + parents.size() / 2;
-
-            point1 = gen_number(path_len);
-            point2 = gen_number(path_len - 1);
-            if(point1 > point2) {
-                std::swap(point1, point2);
-            }
-
-            Individual child1 = Individual::child1_twopoint(p[parent_id1], 
-                                                            p[parent_id2],
-                                                            c, point1, point2);   
-
-            Individual child2 = Individual::child2_twopoint(p[parent_id1], 
-                                                            p[parent_id2], 
-                                                            c, point1, point2);
-            p.push_back(child1);
-            p.push_back(child2);
-        }
-
-        mutate_children();
-        form_new_generation();   
-    }
-
-    void mutate_children() {
-        for(auto iter = p.begin() + population_size; iter < p.end(); ++iter) {
-            if(gen_prob() < Individual::MUTATION_PROB) {
-                iter->mutate_inv(c);
-            }
-        }
-    }
-
-    void form_new_generation() {// think about alternative ways
-        p.sort();
-        p.erase(p.begin() + population_size, p.end());
+    const Population& population() const {
+        return p;
     }
 
     void solve() {
@@ -469,16 +362,138 @@ struct Solution {
         }
         std::cout << std::endl; 
     }
+
+private:
+        double sum_fitness() const {
+        const double max_cost = c.max_cost();
+        return std::accumulate(p.begin(), 
+                               p.end(), 0.0, 
+                               [&max_cost](double a, const Individual& i) { 
+                                           return a + max_cost - i.unfitness;});
+    }
+
+    /// @brief Roulette Wheel Selection
+    std::vector<int> selection() {
+        int id{-1};
+        const double sum = sum_fitness();
+        const double max_cost = c.max_cost();
+       
+        double prob_prev_cuml{0};
+        double prob_temp{0};
+
+        int sel_cnt = selection_cnt();
+        
+        p.sort(0, population_size);
+
+        std::vector<double> probs(population_size);
+        std::transform(p.begin(), p.end(), probs.begin(), 
+                       [&sum, &prob_prev_cuml, &max_cost](const Individual& i) { 
+                                                            prob_prev_cuml += (max_cost - i.unfitness) / sum;
+                                                            return prob_prev_cuml;}); // CDF calculation 
+        std::vector<int> selected;
+        int cnt = 0;
+
+        while(cnt < sel_cnt) {
+            prob_temp = gen_prob();
+            id = 0;
+            while(prob_temp > probs[id] && prob_temp < probs.back()) { 
+                ++id;
+            }
+            selected.push_back(id);
+            ++cnt;
+        }
+
+        return selected;
+    }
+
+    void crossover() {
+        std::vector<int> parents = selection();
+        int parent_id1{-1};
+        int parent_id2{-1};
+        int point1, point2;
+
+        for(int i = 0; i < parents.size() / 2; ++i) {
+            parent_id1 = i;
+            parent_id2 = i + parents.size() / 2;
+
+            point1 = gen_number(path_len);
+
+
+            if(crsvr == Crossover::ONE_POINT) {
+                   Individual child1 = Individual::child1_onepoint(p[parent_id1], 
+                                                                   p[parent_id2],
+                                                                   c, point1);   
+
+                    Individual child2 = Individual::child2_onepoint(p[parent_id1], 
+                                                                    p[parent_id2], 
+                                                                    c, point1);
+                    p.push_back(child1);
+                    p.push_back(child2);
+            } else {
+                point2 = gen_number(path_len);
+
+                if(point1 > point2) {
+                   std::swap(point1, point2);
+                }
+
+                Individual child1 = Individual::child1_twopoint(p[parent_id1], 
+                                                                p[parent_id2],
+                                                                c, point1, point2);   
+
+                Individual child2 = Individual::child2_twopoint(p[parent_id1], 
+                                                                p[parent_id2], 
+                                                                c, point1, point2);
+                p.push_back(child1);
+                p.push_back(child2);
+            }
+            
+        }
+
+        mutate_children();
+        form_new_generation();   
+    }
+
+    void mutate_children() {
+        for(auto iter = p.begin() + population_size; iter < p.end(); ++iter) {
+            if(gen_prob() < Individual::MUTATION_PROB) {
+                iter->mutate_inv(c);
+            }
+        }
+    }
+
+    void form_new_generation() {
+        int remove_cnt = selection_cnt();
+        int parents_rem = population_size - remove_cnt;
+
+        assert(p.size() == population_size + remove_cnt);
+
+        p.sort(0, population_size); // remove unfittest remove_cnt parents
+        
+        p.erase(p.begin() + population_size - remove_cnt, 
+                p.begin() + population_size);
+
+        p.sort(0, population_size);
+
+        assert(p.size() == population_size);
+    }
+
+
+    int selection_cnt() const {
+        int temp = population_size * (1 - Solution::ELITISM_PROP);
+        return temp % 2 == 0 ? temp : temp + 1; 
+    }
+
+    Population p;
 };
 
 
 int main(int argc, char** argv) {
-    const bool testing = true;
-    // const bool testing = false;
-    const int max_iter = 10000;
-    const int population_size = 50;
+    const int max_iter = 1000;
 
-    if(testing) {
+    if(argc > 2 || (argc == 2 && argv[1] != std::string("test"))) {
+        std::cout << "Usage: <program name> <optional: test>" << std::endl;
+        return -1;
+    } else if(argc == 2) {
         std::vector<Coordinate> cs{ {500.000190032, 499.999714054}, // translated so as to be non-negative
                                     {883.4580000000001, 499.999391244},
                                     {472.9794, 217.24200000000002}, 
@@ -500,18 +515,20 @@ int main(int argc, char** argv) {
                                         "Newcastle", "Nottingham",
                                         "Oxford", "Stratford"};
 
-        Solution s(50, 1000, cs);
+        Solution s(110, 15000, cs, Crossover::ONE_POINT); // one point better escapes local minimum
         s.solve();
         for(int i = 0; i < cs.size(); ++i) {
-            std::cout << cities[((s.p[0]).path)[i]] << std::endl;
+            std::cout << cities[((s.population()[0]).path)[i]] << std::endl;
         }
 
     } else {
         int N;
         std::cin >> N;
 
-        Solution s(100, max_iter, N);
+        Solution s(10 * N, max_iter, N); // default twopoint crossover
         s.solve();
     }
+
+
     return 0;
 }
