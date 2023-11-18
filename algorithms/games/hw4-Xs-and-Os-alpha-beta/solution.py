@@ -7,6 +7,7 @@ def y_n_input() -> bool:
     tokens: List[str] = []
 
     while(True):
+        print(">  ", end="")
         res: str = input()
         tokens = res.split()
         
@@ -42,6 +43,7 @@ class Move:
     def read(self) -> None:
 
         while True:
+            print("> ", end="")
             inp = input()
             if inp != '\n':
                 tokens: List[str] = inp.split()
@@ -69,7 +71,7 @@ class Move:
 
 class Board:
     PLAYERS: Tuple["str", "str"] = "X", "O"
-    FREE_SPOT: str = "_"
+    FREE_SPOT: str = "-"
     DRAW: str = ""
     LIMIT: int = 10
     N_INF = - LIMIT - 1
@@ -146,7 +148,7 @@ class Board:
 
     def play(self) -> None:
         
-        print(self, end="\n\n")
+        print(f"\n{self}\n\n")
 
         winner: Optional[str] = self.terminal()
 
@@ -236,7 +238,11 @@ class Board:
 
 
     def __str__(self) -> str:
-        return "\n".join(" ".join(row) for row in self.board)
+        cnts: List[int] = list(range(0, len(self.board))) 
+
+        return "  " + " ".join(str(elem) for elem in cnts) + "\n" + \
+               "\n".join(str(cnt) + " " + " ".join(str(elem) for elem in row) 
+                         for cnt, row in zip(cnts, self.board))
 
     def eval(self, winner: str, depth: int) -> int:
         if winner == self.computer:
