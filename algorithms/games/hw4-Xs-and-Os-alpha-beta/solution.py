@@ -87,8 +87,8 @@ class Board:
 
         assert(self.computer != self.opponent)
 
-    def maximizer(self, alpha: int, 
-                  beta: int, depth: int = 0) -> int:
+    def _maximizer(self, alpha: int, 
+                   beta: int, depth: int = 0) -> int:
         winner: Optional[str] = self.terminal()
 
         """
@@ -106,7 +106,7 @@ class Board:
                     
                     self.board[i][j] = self.computer
 
-                    best = max(best, self.minimizer(alpha, beta, depth + 1))
+                    best = max(best, self._minimizer(alpha, beta, depth + 1))
                     self.board[i][j] = Board.FREE_SPOT # backtrack
 
                     if best >= beta:
@@ -116,8 +116,8 @@ class Board:
         
         return best
 
-    def minimizer(self, alpha: int,
-                  beta: int, depth: int = 0) -> int:
+    def _minimizer(self, alpha: int,
+                   beta: int, depth: int = 0) -> int:
         """
         Opponent virtual move
         """
@@ -134,7 +134,7 @@ class Board:
                     
                     self.board[i][j] = self.opponent
 
-                    best = min(best, self.maximizer(alpha, beta, depth + 1))
+                    best = min(best, self._maximizer(alpha, beta, depth + 1))
                     self.board[i][j] = Board.FREE_SPOT # backtrack
 
                     if alpha >= best:
@@ -152,7 +152,7 @@ class Board:
 
         if winner != None:
             print("End of game. " + 
-                  ("Nobody " if winner == Board.DRAW else winner) + " won!")
+                  ("Nobody" if winner == Board.DRAW else winner) + " won!")
             return 
 
         if self.turn == self.computer:
@@ -197,7 +197,7 @@ class Board:
                     
                     self.board[i][j] = self.computer
                     
-                    val = self.minimizer(Board.N_INF, Board.P_INF)
+                    val = self._minimizer(Board.N_INF, Board.P_INF)
                     if val > best_res:
                         best_res = val
                         best_move.x = i
