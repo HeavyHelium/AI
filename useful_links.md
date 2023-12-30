@@ -7,9 +7,10 @@
 - [PAN](https://pan.webis.de/)
 - CLEF
 
-## Notes on Machine Learning
+## Notes & Cheatsheets on Machine Learning
 
 - [Triangle Inequality](https://triangleinequality.wordpress.com/category/machine-learning/)
+- [Cheatsheet Stanford CS229](https://stanford.edu/~shervine/teaching/cs-229/cheatsheet-supervised-learning)
 
 ## Tutorials
 
