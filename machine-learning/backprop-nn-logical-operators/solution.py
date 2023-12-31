@@ -13,7 +13,7 @@ class Neuron:
     """
     MIN_PARAM_INIT = -0.05
     MAX_PARAM_INIT = 0.05
-    
+
     def __init__(self, num_inputs: int, activation=False) -> None:
         self.weights: List[float] = [random.uniform(Neuron.MIN_PARAM_INIT, 
                                                     Neuron.MAX_PARAM_INIT) for _ in range(num_inputs)]
@@ -162,6 +162,6 @@ if __name__ == "__main__":
 
     print()
 
-    xor = NeuralNet.LogicalXOR(100000, alpha=0.05)
+    xor = NeuralNet.LogicalXOR(100000, alpha=0.01)
     for x, y in zip(X_test, [0, 1, 0, 1]):
         print(f"{x[0]} XOR {x[1]}: {xor.predict(x)}")    
