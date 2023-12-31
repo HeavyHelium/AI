@@ -13,6 +13,7 @@ class Neuron:
     """
     MIN_PARAM_INIT = -0.05
     MAX_PARAM_INIT = 0.05
+    
     def __init__(self, num_inputs: int, activation=False) -> None:
         self.weights: List[float] = [random.uniform(Neuron.MIN_PARAM_INIT, 
                                                     Neuron.MAX_PARAM_INIT) for _ in range(num_inputs)]
@@ -33,10 +34,10 @@ class Neuron:
 
 class Layer:
     def __init__(self, num_inputs: int, num_outputs: int, activation=False):
-        self.neurons: List[Neurons] = [Neuron(num_inputs, activation) for _ in range(num_outputs)]
+        self.neurons: List[Neuron] = [Neuron(num_inputs, activation) for _ in range(num_outputs)]
 
     def __call__(self, x: List[float]) -> List[float]:
-        return [n(x) for n in self.neurons]
+        return [n(x) for n in self.neurons] if self.neurons else x
 
     @property
     def parameters(self) -> List[float]:
@@ -45,48 +46,64 @@ class Layer:
     def __repr__(self) -> str:
         return f"Layer with neurons: [{', '.join(str(n) for n in self.neurons)}]"
 
+    def update(self, losses: List[float], 
+                     inputs: List[float], 
+                     alpha: float) -> None:
+        for j in range(len(self.neurons)):
+            # update weights
+            for i in range(len(self.neurons[j].weights)):
+                self.neurons[j].weights[i] += alpha * losses[j] * inputs[i]
+            # update bias
+            self.neurons[j].b += alpha * losses[j]
 
 class NeuralNet:
     """
     Extremely simple 2 layer perceptron NN
+    (3 layers, if you count the input)
     """
 
-    ALPHA: float = 0.05
+    ALPHA: float = 0.1 # learning rate
 
-    def __init__(self, hidden_cnt: int) -> None:
-        self.layers = [Layer(2, hidden_cnt, activation=True), 
-                       Layer(hidden_cnt, 1, activation=True)]
+    def __init__(self, 
+                 input_cnt: int, 
+                 hidden_cnt: int, 
+                 output_cnt: int) -> None:
+
+        self.layers = [Layer(input_cnt, hidden_cnt, activation=True), 
+                       Layer(hidden_cnt, output_cnt, activation=True) if hidden_cnt 
+                       else Layer(input_cnt, output_cnt, activation=True)]
     
-    def fit(self, X_train: List[List[int]], 
-                  y_train: List[List[int]], 
-                  epochs: int = 10000) -> None:
-        pass 
+    def fit(self, X_train: List[List[float]], 
+                  y_train: List[List[float]], 
+                  epochs: int, 
+                  alpha: float = None) -> None:
+        
+        alpha = NeuralNet.ALPHA if not alpha else alpha
+
+        for _ in range(epochs):
+            for x, y in zip(X_train, y_train):
+                self.update(x, y, alpha)
 
     @staticmethod
     def loss_output(expected: float, predicted: float) -> float:
         return predicted * (1 - predicted) * (expected - predicted)
 
-    def loss_hidden(n: Neuron, 
-                    inp: List[int], 
-                    errors: List[float]) -> float:
-        
-        val = n(inp)
-        return val * (1 - val) * n(errors)
-
-    def update(self, x, y) -> float:
+    def update(self, x: List[float], y: List[float], alpha: float) -> float:
         """
-        :Returns: the loss of outputnode
+        Updates the weights given the entry (x, y)
         """
         a_ouput: float = self.predict(x)        
         a_hidden: List[float] = self.layers[0](x)
 
         output_losses: float = [NeuralNet.loss_output(t, a_out) for t, a_out in zip(y, a_ouput)]
-        hidden_losses: List[float] = [a_h * (1 - a_h) * 1 * sum(self.layers[1].neurons[k].weights[h] 
-                                                                 for k, delta_k in enumerate(output_losses))  
-                                      for h, a_h in enumerate(a_hidden)]
+
+        hidden_losses: List[float] = [a_h * (1 - a_h) * sum(self.layers[1].neurons[k].weights[h] * delta_k 
+                                                            for k, delta_k in enumerate(output_losses))  
+                                      for h, a_h in enumerate(a_hidden)] if len(self.layers[0].neurons) else []
 
 
-
+        self.layers[1].update(output_losses, a_hidden, alpha)
+        self.layers[0].update(hidden_losses, x, alpha)
 
 
     def predict(self, x: List[int]) -> float:
@@ -98,19 +115,53 @@ class NeuralNet:
         
         assert len(x) == 1
 
-        return x[0]
+        return x
 
+    @classmethod
+    def LogicalAnd(cls, epochs, alpha: float = None) -> "NeuralNet":
+        X_train = [[1, 1], [1, 0], [0, 0], [0, 1]]
+        y_train = [[1], [0], [0], [0]]
 
+        nn = cls(input_cnt=2, hidden_cnt=0, output_cnt=1)
+        nn.fit(X_train, y_train, epochs=epochs)
+
+        return nn
+
+    @classmethod
+    def LogicalOr(cls, epochs, alpha: float = None) -> "NeuralNet":
+        X_train = [[1, 1], [1, 0], [0, 0], [0, 1]]
+        y_train = [[1], [1], [0], [1]]
+
+        nn = cls(input_cnt=2, hidden_cnt=0, output_cnt=1)
+        nn.fit(X_train, y_train, epochs=epochs)
+
+        return nn
+
+    @classmethod
+    def LogicalXOR(cls, epochs, alpha: float = None) -> "NeuralNet":
+        X_train = [[1, 1], [1, 0], [0, 0], [0, 1]]
+        y_train = [[0], [1], [0], [1]]
+
+        nn = cls(input_cnt=2, hidden_cnt=3, output_cnt=1)
+        nn.fit(X_train, y_train, epochs=epochs)
+
+        return nn
 
 if __name__ == "__main__":
-    l = Layer(2, 3)
-    print(l.parameters)
+    X_test = [[1, 1], [1, 0], [0, 0], [0, 1]]
 
-    print(l.parameters)
+    land = NeuralNet.LogicalAnd(100000)
+    for x, y in zip(X_test, [1, 0, 0, 0]):
+        print(f"{x[0]} and {x[1]}: {land.predict(x)}")
 
+    print()
 
+    lor = NeuralNet.LogicalOr(100000)
+    for x, y in zip(X_test, [1, 1, 0, 1]):
+        print(f"{x[0]} or {x[1]}: {lor.predict(x)}")
 
+    print()
 
-
-
-    
+    xor = NeuralNet.LogicalXOR(100000, alpha=0.05)
+    for x, y in zip(X_test, [0, 1, 0, 1]):
+        print(f"{x[0]} XOR {x[1]}: {xor.predict(x)}")    
