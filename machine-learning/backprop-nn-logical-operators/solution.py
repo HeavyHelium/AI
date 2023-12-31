@@ -90,7 +90,7 @@ class NeuralNet:
 
     def update(self, x: List[float], y: List[float], alpha: float) -> float:
         """
-        Updates the weights given the entry (x, y)
+        Updates the paramaters given the entry (x, y)
         """
         a_ouput: float = self.predict(x)        
         a_hidden: List[float] = self.layers[0](x)
