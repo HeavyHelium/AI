@@ -123,7 +123,7 @@ class NeuralNet:
         y_train = [[1], [0], [0], [0]]
 
         nn = cls(input_cnt=2, hidden_cnt=0, output_cnt=1)
-        nn.fit(X_train, y_train, epochs=epochs)
+        nn.fit(X_train, y_train, epochs=epochs, alpha=alpha)
 
         return nn
 
@@ -133,7 +133,7 @@ class NeuralNet:
         y_train = [[1], [1], [0], [1]]
 
         nn = cls(input_cnt=2, hidden_cnt=0, output_cnt=1)
-        nn.fit(X_train, y_train, epochs=epochs)
+        nn.fit(X_train, y_train, epochs=epochs, alpha=alpha)
 
         return nn
 
@@ -143,7 +143,7 @@ class NeuralNet:
         y_train = [[0], [1], [0], [1]]
 
         nn = cls(input_cnt=2, hidden_cnt=3, output_cnt=1)
-        nn.fit(X_train, y_train, epochs=epochs)
+        nn.fit(X_train, y_train, epochs=epochs, alpha=alpha)
 
         return nn
 
@@ -152,16 +152,16 @@ if __name__ == "__main__":
 
     land = NeuralNet.LogicalAnd(100000)
     for x, y in zip(X_test, [1, 0, 0, 0]):
-        print(f"{x[0]} and {x[1]}: {land.predict(x)}")
+        print(f"{x[0]} and {x[1]}: {land.predict(x)[0]:.2f} vs {y}")
 
     print()
 
     lor = NeuralNet.LogicalOr(100000)
     for x, y in zip(X_test, [1, 1, 0, 1]):
-        print(f"{x[0]} or {x[1]}: {lor.predict(x)}")
+        print(f"{x[0]} or {x[1]}: {lor.predict(x)[0]:.2f} vs {y}")
 
     print()
 
-    xor = NeuralNet.LogicalXOR(100000, alpha=0.01)
+    xor = NeuralNet.LogicalXOR(100000)
     for x, y in zip(X_test, [0, 1, 0, 1]):
-        print(f"{x[0]} XOR {x[1]}: {xor.predict(x)}")    
+        print(f"{x[0]} XOR {x[1]}: {xor.predict(x)[0]:.2f} vs {y}")
